@@ -17,6 +17,7 @@ logger = logging.getLogger("py4web:" + settings.APP_NAME)
 formatter = logging.Formatter(
     "%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"
 )
+
 for item in settings.LOGGERS:
     level, filename = item.split(":", 1)
     if filename in ("stdout", "stderr"):

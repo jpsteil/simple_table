@@ -1,11 +1,14 @@
 from py4web import action, request, abort, redirect, URL, response, Field
+from py4web.utils.grid import Grid
 from yatl.helpers import A
-from . common import db, session, T, cache, auth, logger, authenticated
+from .common import db, session, T, cache, auth, logger, authenticated
 from py4web.utils.form import Form, FormStyleBulma
-from . libs.simple_table import SimpleTable, get_signature, get_filter_value, set_filter_values
+from .libs.simple_table import SimpleTable, get_signature, get_filter_value, set_filter_values
+from .settings import SIMPLE_TABLE_ROWS_PER_PAGE
 
 
 @action('index', method=['POST', 'GET'])
+@action('/', method=['POST', 'GET'])
 @action.uses(session, db, auth, 'libs/query_table.html')
 def index():
     url_path = 'index'
@@ -32,13 +35,13 @@ def index():
     if search_filter:
         queries.append((db.zip_code.zip_code.contains(search_filter)) |
                        (db.zip_code.primary_city.contains(search_filter)) |
-                       (db.zip_code.county.contains(search_filter)))
+                       (db.zip_code.county.contains(search_filter)) |
+                       (db.zip_code.state.contains(search_filter)))
 
     orderby = [db.zip_code.state, db.zip_code.county, db.zip_code.primary_city]
     grid = SimpleTable(url_path,
                        queries,
                        fields=fields,
-                       tablename='zip_code',
                        search_form=form,
                        filter_values=dict(search_filter=search_filter),
                        orderby=orderby,
@@ -60,3 +63,27 @@ def zip_code(zip_code_id):
 
     return dict(form=form)
 
+
+@action('grid', method=['POST', 'GET'])
+@action.uses(session, db, auth, 'index.html')
+def grid():
+    fields = ['id',
+              'zip_code',
+              'zip_type',
+              'state',
+              'county',
+              'primary_city']
+
+    grid = Grid(db.zip_code,
+                fields=fields,
+                create=True,
+                editable=True,
+                deletable=True,
+                limit=14)
+
+    grid.labels = {x: x.replace('_', ' ').upper() for x in fields}
+
+    # grid.labels = {key: key.title() for key in db.thing.fields}
+    # grid.renderers['name'] = lambda name: SPAN(name, _class='name')
+
+    return dict(form=grid.make())

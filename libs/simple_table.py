@@ -44,7 +44,6 @@ class SimpleTable:
     def __init__(self,
                  endpoint,
                  queries,
-                 tablename,
                  search_form=None,
                  filter_values=None,
                  fields=None,
@@ -64,7 +63,6 @@ class SimpleTable:
 
         :param endpoint: the url of the page. used to build URLs for sorting/searching paging
         :param queries: list of queries used to filter the data
-        :param tablename: name of the primary table being queried
         :param search_form: py4web FORM to be included as the search form
         :param filter_values: current value of all filter field(s)
         :param fields: list of fields to display on the list page
@@ -152,27 +150,31 @@ class SimpleTable:
             parms['left'] = self.left
 
         if self.fields:
-            self.total_rows = db(self.query).select(*fields, **parms)
+            self.total_number_of_rows = db(self.query).count()
         else:
-            self.total_rows = db(self.query).select(**parms)
+            self.total_number_of_rows = db(self.query).count()
 
-        if len(self.total_rows) > self.per_page:
+        #  if at a high page number and then filter causes less records to be displayed, reset to page 1
+        if (self.current_page_number - 1) * per_page > self.total_number_of_rows:
+            self.current_page_number = 1
+
+        if self.total_number_of_rows > self.per_page:
             self.page_start = self.per_page * (self.current_page_number - 1)
             self.page_end = self.page_start + self.per_page
             parms['limitby'] = (self.page_start, self.page_end)
         else:
             self.page_start = 0
-            if len(self.total_rows) > 1:
+            if self.total_number_of_rows > 1:
                 self.page_start = 1
-            self.page_end = len(self.total_rows)
+            self.page_end = self.total_number_of_rows
 
         if self.fields:
             self.rows = db(self.query).select(*fields, **parms)
         else:
             self.rows = db(self.query).select(**parms)
 
-        self.number_of_pages = len(self.total_rows) // self.per_page
-        if len(self.total_rows) % self.per_page > 0:
+        self.number_of_pages = self.total_number_of_rows // self.per_page
+        if self.total_number_of_rows % self.per_page > 0:
             self.number_of_pages += 1
 
         self.include_action_button_text = include_action_button_text
@@ -299,7 +301,7 @@ class SimpleTable:
 
                 _thead.append(_th)
 
-        _thead.append(TH('ACTIONS'))
+        _thead.append(TH('ACTIONS', _style='text-align: center;'))
 
         _table.append(_thead)
 
@@ -347,9 +349,9 @@ class SimpleTable:
         _row_count = DIV(_class='is-pulled-left')
         _row_count.append(
             P('Displaying rows %s thru %s of %s' % (self.page_start + 1 if self.number_of_pages > 1 else 1,
-                                                    self.page_end if self.page_end < len(self.total_rows) else len(
-                                                        self.total_rows),
-                                                    len(self.total_rows))))
+                                                    self.page_end if self.page_end < self.total_number_of_rows else
+                                                    self.total_number_of_rows,
+                                                    self.total_number_of_rows)))
         _html.append(_row_count)
 
         #  build the pager

@@ -21,4 +21,7 @@ db.define_table('zip_code',
                 Field('longitude', 'decimal(5,2)'),
                 format='%(zip_code)s')
 
+db.executesql('CREATE INDEX IF NOT EXISTS zip_code__idx ON zip_code (zip_code);')
+db.executesql('CREATE INDEX IF NOT EXISTS zip_code_2__idx ON zip_code (zip_code, county, primary_city);')
+
 db.commit()
