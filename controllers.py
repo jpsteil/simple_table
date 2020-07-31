@@ -9,7 +9,7 @@ from .settings import SIMPLE_TABLE_ROWS_PER_PAGE
 
 @action('index', method=['POST', 'GET'])
 @action('/', method=['POST', 'GET'])
-@action.uses(session, db, auth, 'libs/query_table.html')
+@action.uses(session, db, auth, 'libs/simple_table.html')
 def index():
     url_path = 'index'
 
@@ -25,11 +25,11 @@ def index():
     search_filter = get_filter_value(user_signature, 'search_filter', None)
 
     #  build the search form
-    form = Form([Field('search', length=50, default=search_filter)],
+    search_form = Form([Field('search', length=50, default=search_filter)],
                 keep_values=True, formstyle=FormStyleBulma)
 
-    if form.accepted:
-        search_filter = form.vars['search']
+    if search_form.accepted:
+        search_filter = search_form.vars['search']
 
     queries = [(db.zip_code.id > 0)]
     if search_filter:
@@ -42,7 +42,7 @@ def index():
     grid = SimpleTable(url_path,
                        queries,
                        fields=fields,
-                       search_form=form,
+                       search_form=search_form,
                        filter_values=dict(search_filter=search_filter),
                        orderby=orderby,
                        create_url=URL('zip_code/0', vars=dict(user_signature=user_signature)),
@@ -57,6 +57,9 @@ def index():
 @action.uses(session, db, auth, 'libs/edit.html')
 def zip_code(zip_code_id):
     form = Form(db.zip_code, record=zip_code_id, formstyle=FormStyleBulma)
+
+    for item in request.query.iteritems():
+        print(item)
 
     if form.accepted:
         redirect(URL('index', vars=dict(user_signature=request.query.get('user_signature'))))
