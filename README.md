@@ -25,6 +25,7 @@ The concept for filtering is that you define and manage your own filter form and
 * Paging seems to be off a little bit - I will submit a PR
 * filtering - if you return no rows, you lose all your column header except for the ones where there is a filter
 * the paging buttons move around too much - I like to be able to page without moving my mouse.  The next button moves around based on the text before it (obviously).  Would like a different paging control.
+* formatting - I seem to recall Massimo saying we needed to add some standardized css classes so people can modify the look and feel.
 
 #### datatables.net
 * biggest concern here is formatting/presentation.  I'm using bulma in py4web but there is no official bulma skin for datatables.net.  Need to look into formatting options.
