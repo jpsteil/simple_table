@@ -60,9 +60,6 @@ def index():
 def zip_code(zip_code_id):
     form = Form(db.zip_code, record=zip_code_id, formstyle=FormStyleBulma)
 
-    for item in request.query.iteritems():
-        print(item)
-
     if form.accepted:
         redirect(URL('index', vars=dict(user_signature=request.query.get('user_signature'))))
 
