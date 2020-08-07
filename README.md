@@ -1,4 +1,4 @@
-# simple table
+# py4web simple table
 
 A collection of different ways to display a grid in py4web.
 
