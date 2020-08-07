@@ -67,9 +67,9 @@ CELERY_BROKER = "redis://localhost:6379/0"
 
 # try import private settings
 try:
-    from .settings_private import *
+    from . settings_private import *
 except:
     pass
 
-SIMPLE_TABLE_ROWS_PER_PAGE = 14
+SIMPLE_TABLE_ROWS_PER_PAGE = 15
 SIMPLE_TABLE_SIGNATURE_MAX_AGE = 60

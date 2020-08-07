@@ -1,14 +1,28 @@
 class DataTablesResponse:
     def __init__(self, fields=None, data_function=None, edit_function=None, page_length=15, sort_sequence=None):
+        """
+        A dataholder class so we can simply pass data from controller to web page with some defaults
+
+        :param fields: list of DataTablesField objects to display on the page
+        :param data_function: the controller function to call to get the data
+        :param edit_function: edit function to call to edit a page - Not in use at this time
+        :param page_length: default=15 - number of rows to display by default
+        :param sort_sequence: list of a list of columns to sort by
+        """
         self.fields = fields
         self.data_function = data_function
         self.edit_function = edit_function
         self.page_length = page_length
-        self.sort_sequence = sort_sequence
+        self.sort_sequence = sort_sequence if sort_sequence else []
 
 
 class DataTablesRequest:
     def __init__(self, get_vars):
+        """
+        the data request coming from a datatables.net ajax call
+
+        :param get_vars: vars supplied by datatables.net
+        """
         self.draw = None
         self.start = 0
         self.length = 15
@@ -23,6 +37,11 @@ class DataTablesRequest:
         self.parse()
 
     def parse(self):
+        """
+        parse all the args we need from datatables.net into instance variables
+
+        :return:
+        """
         for x in self.get_vars:
             value = self.get_vars[x]
             if x == 'start':
@@ -99,6 +118,15 @@ class DataTablesRequest:
         return
 
     def order(self, db, table_name):
+        """
+        build a dal orderby clause
+
+        at this time it only supports orderby for 1 table
+
+        :param db: dal reference
+        :param table_name: name of the table the colums are in
+        :return:
+        """
         self.dal_orderby = []
         if self.orderby and table_name:
             for ob in self.orderby:
@@ -115,6 +143,18 @@ class DataTablesField:
     def __init__(self, name, label=None,
                  sort_sequence=None, visible=True, editable=False,
                  hide_edit=False, control_type=None, options=None):
+        """
+        a dataholder class holding all the info we need on a field
+
+        :param name: the name
+        :param label: the label
+        :param sort_sequence: the sort sequence
+        :param visible: visible or not
+        :param editable: is it editable - future
+        :param hide_edit: hide this field on an edit - future
+        :param control_type: type of control to use for the edit page
+        :param options: misc options - future
+        """
         self.name = name
         self.label = label if label else name.upper().replace('_', ' ')
         self.sort_sequence = sort_sequence

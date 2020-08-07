@@ -36,6 +36,7 @@ def index():
     queries = [(db.zip_code.id > 0)]
     if search_filter:
         queries.append((db.zip_code.zip_code.contains(search_filter)) |
+                       (db.zip_code.zip_type.contains(search_filter)) |
                        (db.zip_code.primary_city.contains(search_filter)) |
                        (db.zip_code.county.contains(search_filter)) |
                        (db.zip_code.state.contains(search_filter)))
@@ -85,9 +86,6 @@ def grid():
 
     grid.labels = {x: x.replace('_', ' ').upper() for x in fields}
 
-    # grid.labels = {key: key.title() for key in db.thing.fields}
-    # grid.renderers['name'] = lambda name: SPAN(name, _class='name')
-
     return dict(form=grid.make())
 
 
@@ -95,6 +93,11 @@ def grid():
 @action('datatables', method=['GET', 'POST'])
 @action.uses(session, db, auth, 'datatables.html')
 def datatables():
+    """
+    display a page with a datatables.net grid on it
+
+    :return:
+    """
     return dict(dt=DataTablesResponse(fields=[DataTablesField(name='DT_RowId', visible=False),
                                               DataTablesField(name='zip_code'),
                                               DataTablesField(name='zip_type'),
@@ -109,6 +112,11 @@ def datatables():
 @action('_datatables_data', method=['GET', 'POST'])
 @action.uses(session, db, auth)
 def _datatables_data():
+    """
+    datatables.net makes an ajax call to this method to get the data
+
+    :return:
+    """
     dtr = DataTablesRequest(dict(request.query.decode()))
     dtr.order(db, 'zip_code')
 
