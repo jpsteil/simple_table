@@ -1,0 +1,54 @@
+[[extend 'layout.html']]
+<script type="text/javascript">
+    var editor;
+    $(document).ready(function() {
+        $('#datatables_table').DataTable( {
+            dom: "Blfrtip",
+            processing: true,
+            serverSide: true,
+            lengthMenu: [ [10, 15, 20, -1], [10, 15, 20, 'All'] ],
+            pageLength: "[[=dt.page_length ]]",
+            ajax: "[[=URL(dt.data_function) ]]",
+            columns: [
+                [[for field in dt.fields:]]
+                    {
+                        "data": "[[=field.name]]",
+                        "name": "[[=field.name]]",
+                        [[if not field.visible:]]
+                            "visible": false,
+                        [[pass]]
+                    },
+                [[pass]]
+                ],
+            columnDefs: [
+                [[for index, field in enumerate(dt.fields):]]
+                    [[if not field.visible:]]
+                        { "visible": false,  "targets": [[=index]] },
+                    [[pass]]
+                [[pass]]
+            ],
+            order: [
+                [[for sort in dt.sort_sequence:]]
+                    [ [[=sort[0] ]], "[[=sort[1] ]]" ],
+                [[pass]]
+            ],
+            stateSave: true,
+            select: true,
+        });
+
+        $('.dataTables_filter input').focus().select();
+    } );
+</script>
+<div class="container" style="padding-top: 1em;">
+    <table id="datatables_table" class="table table-condensed table-highlight">
+        <thead>
+            <tr>
+                [[for field in dt.fields:]]
+                    <th>[[=field.label]]</th>
+                [[pass]]
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+</div>

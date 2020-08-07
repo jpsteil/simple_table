@@ -301,7 +301,8 @@ class SimpleTable:
 
                 _thead.append(_th)
 
-        _thead.append(TH('ACTIONS', _style='text-align: center;'))
+        if self.edit_url or self.delete_url:
+            _thead.append(TH('ACTIONS', _style='text-align: center;'))
 
         _table.append(_thead)
 
@@ -342,7 +343,7 @@ class SimpleTable:
                                _class='button is-small')
                     _td.append(_a)
                 _tr.append(_td)
-                _table.append(_tr)
+            _table.append(_tr)
 
         _html.append(_table)
 

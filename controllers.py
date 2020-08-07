@@ -1,10 +1,12 @@
-from py4web import action, request, abort, redirect, URL, response, Field
-from py4web.utils.grid import Grid
-from yatl.helpers import A
-from .common import db, session, T, cache, auth, logger, authenticated
+import json
+from functools import reduce
+
+from py4web import action, request, redirect, URL, Field
 from py4web.utils.form import Form, FormStyleBulma
-from .libs.simple_table import SimpleTable, get_signature, get_filter_value, set_filter_values
-from .settings import SIMPLE_TABLE_ROWS_PER_PAGE
+from py4web.utils.grid import Grid
+from .common import db, session, auth, unauthenticated
+from .libs.datatables import DataTablesField, DataTablesRequest, DataTablesResponse
+from .libs.simple_table import SimpleTable, get_signature, get_filter_value
 
 
 @action('index', method=['POST', 'GET'])
@@ -26,7 +28,7 @@ def index():
 
     #  build the search form
     search_form = Form([Field('search', length=50, default=search_filter)],
-                keep_values=True, formstyle=FormStyleBulma)
+                       keep_values=True, formstyle=FormStyleBulma)
 
     if search_form.accepted:
         search_filter = search_form.vars['search']
@@ -90,3 +92,47 @@ def grid():
     # grid.renderers['name'] = lambda name: SPAN(name, _class='name')
 
     return dict(form=grid.make())
+
+
+@unauthenticated
+@action('datatables', method=['GET', 'POST'])
+@action.uses(session, db, auth, 'datatables.html')
+def datatables():
+    return dict(dt=DataTablesResponse(fields=[DataTablesField(name='DT_RowId', visible=False),
+                                              DataTablesField(name='zip_code'),
+                                              DataTablesField(name='zip_type'),
+                                              DataTablesField(name='state'),
+                                              DataTablesField(name='county'),
+                                              DataTablesField(name='primary_city')],
+                                      data_function='_datatables_data',
+                                      sort_sequence=[[1, 'asc']]))
+
+
+@unauthenticated
+@action('_datatables_data', method=['GET', 'POST'])
+@action.uses(session, db, auth)
+def _datatables_data():
+    dtr = DataTablesRequest(dict(request.query.decode()))
+    dtr.order(db, 'zip_code')
+
+    queries = [(db.zip_code.id > 0)]
+    if dtr.search_value and dtr.search_value != '':
+        queries.append((db.zip_code.primary_city.contains(dtr.search_value)) |
+                       (db.zip_code.zip_code.contains(dtr.search_value)) |
+                       (db.zip_code.zip_type.contains(dtr.search_value)) |
+                       (db.zip_code.state.contains(dtr.search_value)) |
+                       (db.zip_code.county.contains(dtr.search_value)))
+
+    query = reduce(lambda a, b: (a & b), queries)
+    record_count = db(db.zip_code.id > 0).count()
+    filtered_count = db(query).count()
+
+    data = [dict(DT_RowId=z.id,
+                 zip_code=z.zip_code,
+                 zip_type=z.zip_type,
+                 state=z.state,
+                 county=z.county,
+                 primary_city=z.primary_city) for z in db(query).select(orderby=dtr.dal_orderby,
+                                                                        limitby=[dtr.start, dtr.start + dtr.length])]
+
+    return json.dumps(dict(data=data, recordsTotal=record_count, recordsFiltered=filtered_count))
