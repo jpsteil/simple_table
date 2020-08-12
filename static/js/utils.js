@@ -216,8 +216,10 @@ utils.load_and_trap = function (method, url, form_data, target) {
     /* if target is not there, fill it with something that there isn't in the page*/
     if (target === void 0 || target === '') target = 'py4web_none';
     var onsuccess = function(res) {
-        Q('#'+target)[0].innerHTML = res.data;
+        Q('#'+target)[0].innerHTML = res.data;        
         utils.trap_form(url, target);
+        var flash = res.headers['py4web-flash']
+        if (flash) utils.flash(JSON.parse(flash));
     };
     var onerror = function(res) {
         alert('ajax error');
@@ -244,11 +246,11 @@ utils.handle_flash = function() {
             var id = 'notification-{0}'.format([element.dataset.counter]);
             element.dataset.counter = parseInt(element.dataset.counter) + 1;
             var node = document.createElement("div");
-            node.innerHTML = '<div class="notification"><button class="delete"></button>{0}</div>'.format([event.detail.message]);
-            node = Q('.notification', node)[0];
-            if (event.detail.class) node.classList.add(event.detail.class);
+            node.innerHTML = '<div role="alert"><span class="close"></span>{0}</div>'.format([event.detail.message]);
+            node = Q('[role="alert"]', node)[0];
+            node.classList.add(event.detail.class||'info');
             element.appendChild(node);
-            Q('.delete',node)[0].onclick = make_delete_handler(node);
+            Q('[role="alert"] .close',node)[0].onclick = make_delete_handler(node);
         };
     };
     if (element) {

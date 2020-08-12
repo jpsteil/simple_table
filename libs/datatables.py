@@ -3,20 +3,21 @@ from py4web import URL
 
 
 class DataTablesResponse:
-    def __init__(self, fields=None, data_function=None, edit_function=None, page_length=15, sort_sequence=None):
+    def __init__(self, fields=None, data_url=None, edit_url=None, delete_url=None, page_length=15, sort_sequence=None):
         """
         All the data we need to build a datatable
         Contains helper methods to write out the table
 
         :param fields: list of DataTablesField objects to display on the page
-        :param data_function: the controller function to call to get the data
-        :param edit_function: edit function to call to edit a page - Not in use at this time
+        :param data_url: the url for the call to get the data
+        :param edit_url: edit url to the edit page for the data
         :param page_length: default=15 - number of rows to display by default
         :param sort_sequence: list of a list of columns to sort by
         """
         self.fields = fields
-        self.data_function = data_function
-        self.edit_function = edit_function
+        self.data_url = data_url
+        self.edit_url = edit_url
+        self.delete_url = delete_url
         self.page_length = page_length
         self.sort_sequence = sort_sequence if sort_sequence else []
 
@@ -70,23 +71,34 @@ class DataTablesResponse:
               '            serverSide: true, '
               '            lengthMenu: [  [10, 15, 20, -1], [10, 15, 20, \'All\']  ], '
               '            pageLength: %s, '
+              '            pagingType: "numbers", '
               '            ajax: "%s", '
-              '            columns: [' % (self.page_length, URL(self.data_function)))
+              '            columns: [' % (self.page_length, self.data_url))
         #  add the field values
         for field in self.fields:
             js += ('{'
                    '    "data": "%s", '
                    '    "name": "%s", '
-                   '    "visible": %s'
+                   '    "visible": %s, '
                    '},' % (field.name, field.name, 'true' if field.visible else 'false'))
         #  add the row buttons
         js += ('{'
                '    data: null,'
                '    render: function ( data, type, row ) {'
-               '      return \'%s\' + \'&nbsp;%s\' '
-               '    }'
-               '}' % (A(I(_class='fas fa-edit'), _href='#', _class='button is-small'),
-                      A(I(_class='fas fa-trash'), _href='#', _class='button is-small')))
+               '      var edit_url=\'%s\'; '
+               '      edit_url = edit_url.replace("record_id", row.DT_RowId); '
+               '      var delete_url=\'%s\'; '
+               '      delete_url = delete_url.replace("record_id", row.DT_RowId); '
+               '      return edit_url + "&nbsp;" + delete_url '
+               '    }, '
+               '    orderable: false, '
+               '}' % (A(I(_class='fas fa-edit'),
+                        _href=self.edit_url if self.edit_url else '#',
+                        _class='button is-small'),
+                      A(I(_class='fas fa-trash'),
+                        _href=self.delete_url if self.delete_url else '#',
+                        _class='button is-small',
+                        _message='Delete Record')))
         js += '], columnDefs: ['
         for index, field in enumerate(self.fields):
             if not field.visible:
@@ -99,10 +111,10 @@ class DataTablesResponse:
             js += '[ %s, "%s" ]' % (sort[0], sort[1])
 
         js += (','
-               'stateSave: true, '
-               'select: true, '
-               '});'
-               '$(".dataTables_filter input").focus().select();'
+               '        stateSave: true, '
+               '        select: true, '
+               '    });'
+               '    $(".dataTables_filter input").focus().select();'
                '});'
                '</script>')
 

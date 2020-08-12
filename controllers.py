@@ -67,10 +67,10 @@ def zip_code(zip_code_id):
 
     return dict(form=form)
 
-#DELETE
+
 @action('zip_code/delete/<zip_code_id>', method=['GET', 'POST'])
 @action.uses(session, db, auth, 'simple_table.html')
-def zip_code(zip_code_id):
+def zip_code_delete(zip_code_id):
     result = db(db.zip_code.id == zip_code_id).delete()
     redirect(URL('index', vars=dict(user_signature=request.query.get('user_signature'))))
 
@@ -111,16 +111,18 @@ def datatables():
                                     DataTablesField(name='state'),
                                     DataTablesField(name='county'),
                                     DataTablesField(name='primary_city')],
-                            data_function='_datatables_data',
+                            data_url=URL('datatables_data'),
+                            edit_url=URL('zip_code_dt/record_id'),
+                            delete_url=URL('zip_code_dt/delete/record_id'),
                             sort_sequence=[[1, 'asc']])
     dt.script()
     return dict(dt=dt)
 
 
 @unauthenticated
-@action('_datatables_data', method=['GET', 'POST'])
+@action('datatables_data', method=['GET', 'POST'])
 @action.uses(session, db, auth)
-def _datatables_data():
+def datatables_data():
     """
     datatables.net makes an ajax call to this method to get the data
 
@@ -150,3 +152,21 @@ def _datatables_data():
                                                                         limitby=[dtr.start, dtr.start + dtr.length])]
 
     return json.dumps(dict(data=data, recordsTotal=record_count, recordsFiltered=filtered_count))
+
+
+@action('zip_code_dt/<zip_code_id>', method=['GET', 'POST'])
+@action.uses(session, db, auth, 'libs/edit.html')
+def zip_code_dt(zip_code_id):
+    form = Form(db.zip_code, record=zip_code_id, formstyle=FormStyleBulma)
+
+    if form.accepted:
+        redirect(URL('datatables'))
+
+    return dict(form=form)
+
+
+@action('zip_code_dt/delete/<zip_code_id>', method=['GET', 'POST'])
+@action.uses(session, db, auth, 'simple_table.html')
+def zip_code_dt_delete(zip_code_id):
+    result = db(db.zip_code.id == zip_code_id).delete()
+    redirect(URL('datatables'))
