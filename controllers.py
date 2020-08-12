@@ -99,14 +99,16 @@ def datatables():
 
     :return:
     """
-    return dict(dt=DataTablesResponse(fields=[DataTablesField(name='DT_RowId', visible=False),
-                                              DataTablesField(name='zip_code'),
-                                              DataTablesField(name='zip_type'),
-                                              DataTablesField(name='state'),
-                                              DataTablesField(name='county'),
-                                              DataTablesField(name='primary_city')],
-                                      data_function='_datatables_data',
-                                      sort_sequence=[[1, 'asc']]))
+    dt = DataTablesResponse(fields=[DataTablesField(name='DT_RowId', visible=False),
+                                    DataTablesField(name='zip_code'),
+                                    DataTablesField(name='zip_type'),
+                                    DataTablesField(name='state'),
+                                    DataTablesField(name='county'),
+                                    DataTablesField(name='primary_city')],
+                            data_function='_datatables_data',
+                            sort_sequence=[[1, 'asc']])
+    dt.script()
+    return dict(dt=dt)
 
 
 @unauthenticated

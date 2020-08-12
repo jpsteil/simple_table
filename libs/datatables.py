@@ -1,7 +1,12 @@
+from yatl.helpers import DIV, TABLE, TR, TD, TH, A, SPAN, I, THEAD, P, TAG, TBODY, SCRIPT
+from py4web import URL
+
+
 class DataTablesResponse:
     def __init__(self, fields=None, data_function=None, edit_function=None, page_length=15, sort_sequence=None):
         """
-        A dataholder class so we can simply pass data from controller to web page with some defaults
+        All the data we need to build a datatable
+        Contains helper methods to write out the table
 
         :param fields: list of DataTablesField objects to display on the page
         :param data_function: the controller function to call to get the data
@@ -14,6 +19,109 @@ class DataTablesResponse:
         self.edit_function = edit_function
         self.page_length = page_length
         self.sort_sequence = sort_sequence if sort_sequence else []
+
+    def style(self):
+        return """
+<style type="text/css">
+    table.dataTable thead th.datatables-header {
+        border-top: 1px solid #dbdbdb;
+        border-right: 1px solid #dbdbdb;
+        border-bottom: 1px solid #dbdbdb;
+        color: #3273dc;
+        height: 2em;
+        vertical-align: middle;
+    }
+    table.dataTable tr td {
+        vertical-align: middle;
+    }
+    table.dataTable thead th.datatables-header:first-child {
+        border-left: 1px solid #dbdbdb;
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button {
+        background-color: white;
+        border-radius: 2px;
+        border-color: #dbdbdb;
+        border-width: 1px;
+        color: #363636;
+        font-size: 0.75rem;
+        height: 2.25em;
+        justify-content: center;
+        padding-bottom: calc(0.375em - 1px);
+        padding-left: 0.75em;
+        padding-right: 0.75em;
+        padding-top: calc(0.375em - 1px);
+        text-align: center;
+        white-space: nowrap;
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+        background: none !important;
+        background-color: #00d1b2 !important;
+        color: #fff !important;
+    }
+</style>
+"""
+
+    def script(self):
+        js = ('<script type="text/javascript">'
+              '    $(document).ready(function() {'
+              '        $(\'#datatables_table\').DataTable( {'
+              '            dom: "lfrtip", '
+              '            processing: true, '
+              '            serverSide: true, '
+              '            lengthMenu: [  [10, 15, 20, -1], [10, 15, 20, \'All\']  ], '
+              '            pageLength: %s, '
+              '            ajax: "%s", '
+              '            columns: [' % (self.page_length, URL(self.data_function)))
+        #  add the field values
+        for field in self.fields:
+            js += ('{'
+                   '    "data": "%s", '
+                   '    "name": "%s", '
+                   '    "visible": %s'
+                   '},' % (field.name, field.name, 'true' if field.visible else 'false'))
+        #  add the row buttons
+        js += ('{'
+               '    data: null,'
+               '    render: function ( data, type, row ) {'
+               '      return \'%s\' + \'&nbsp;%s\' '
+               '    }'
+               '}' % (A(I(_class='fas fa-edit'), _href='#', _class='button is-small'),
+                      A(I(_class='fas fa-trash'), _href='#', _class='button is-small')))
+        js += '], columnDefs: ['
+        for index, field in enumerate(self.fields):
+            if not field.visible:
+                js += '{"visible": false, "targets": %s},' % index
+        js += '{className: "has-text-centered", "targets": %s}' % (index + 1)
+
+        js += ('],'
+               'order: ')
+        for sort in self.sort_sequence:
+            js += '[ %s, "%s" ]' % (sort[0], sort[1])
+
+        js += (','
+               'stateSave: true, '
+               'select: true, '
+               '});'
+               '$(".dataTables_filter input").focus().select();'
+               '});'
+               '</script>')
+
+        return str(js)
+
+    def table(self):
+        _table = TABLE(_id='datatables_table',
+                       _class='compact stripe hover cell-border order-column',
+                       _style='padding-top: 1rem;')
+        _thead = THEAD()
+        _tr = TR()
+        for field in self.fields:
+            _tr.append(TH(field.label, _class='datatables-header'))
+        _tr.append(TH('ACTIONS', _class='datatables-header has-text-centered', _style='color: black;'))
+        _thead.append(_tr)
+        _table.append(_thead)
+        _table.append(TBODY())
+
+        return str(_table)
 
 
 class DataTablesRequest:
