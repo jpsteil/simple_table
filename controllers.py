@@ -67,6 +67,12 @@ def zip_code(zip_code_id):
 
     return dict(form=form)
 
+#DELETE
+@action('zip_code/delete/<zip_code_id>', method=['GET', 'POST'])
+@action.uses(session, db, auth, 'simple_table.html')
+def zip_code(zip_code_id):
+    result = db(db.zip_code.id == zip_code_id).delete()
+    redirect(URL('index', vars=dict(user_signature=request.query.get('user_signature'))))
 
 @action('grid', method=['POST', 'GET'])
 @action.uses(session, db, auth, 'index.html')

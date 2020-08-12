@@ -332,7 +332,7 @@ class SimpleTable:
                 if self.delete_url and self.delete_url != '':
                     if self.include_action_button_text:
                         _a = A(_href=self.delete_url + '/%s?user_signature=%s' % (row.id, self.user_signature),
-                               _class='button is-small')
+                               _class='confirmation button is-small')
                         _span = SPAN(_class='icon is-small action-button-image')
                         _span.append(I(_class='fas fa-trash'))
                         _a.append(_span)
@@ -340,7 +340,7 @@ class SimpleTable:
                     else:
                         _a = A(I(_class='fas fa-trash'),
                                _href=self.delete_url + '/%s?user_signature=%s' % (row.id, self.user_signature),
-                               _class='button is-small')
+                               _class='confirmation button is-small', _message='Delete record ' +str(row.id) )
                     _td.append(_a)
                 _tr.append(_td)
             _table.append(_tr)
