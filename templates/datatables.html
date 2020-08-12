@@ -6,6 +6,11 @@
         border-bottom: 1px solid #dbdbdb;
         color: #3273dc;
         height: 2em;
+        vertical-align: middle;
+    }
+
+    table.dataTable tr td {
+        vertical-align: middle;
     }
     table.dataTable thead th.datatables-header:first-child {
         border-left: 1px solid #dbdbdb;
@@ -82,7 +87,7 @@
     } );
 </script>
 <div class="container" style="padding-top: 1em;">
-    <table id="datatables_table" class="table compact stripe hover cell-border order-column" style="padding-top: 1rem;">
+    <table id="datatables_table" class="compact stripe hover cell-border order-column" style="padding-top: 1rem;">
         <thead>
             <tr>
                 [[for field in dt.fields:]]
