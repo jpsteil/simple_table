@@ -29,6 +29,6 @@ The concept for filtering is that you define and manage your own filter form and
 
 #### datatables.net
 * biggest concern here is formatting/presentation.  I'm using bulma in py4web but there is no official bulma skin for datatables.net.  Need to look into formatting options.  UPDATE 8/11/2020 - I've made lots of formatting changes.  More to come but got a good start tonight.
-* edit controls - I have the edit controls placed where I want them - just need to insert the urls for the edit pages - Coming soon
+* edit controls - Edit and Delete buttons are working - need to put confirmation message up before delete
 * my implementation uses a specific view page.  I need to make it more granular so you can include the javascript in one spot and specify the element id for where the table lives - UPDATE 8/11/2020 - Moved the style, script and datatables table html into datatables.py.  Still a lot of work to do but this will make it easier to use in multiple places without relying on the datatables.html file that was there.  The latest version of datatables.py now calls three methods from the DataTablesResponse class to generate the style, script and html table
  
