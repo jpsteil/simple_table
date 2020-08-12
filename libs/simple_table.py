@@ -273,7 +273,7 @@ class SimpleTable:
 
         _html.append(_top_div)
 
-        _table = TABLE(_class='table is-bordered is-striped is-hoverable is-fullwidth', _id="table")
+        _table = TABLE(_class='table is-bordered is-striped is-hoverable is-fullwidth')
 
         # build the header
         _thead = THEAD()
