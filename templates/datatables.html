@@ -1,13 +1,47 @@
 [[extend 'layout.html']]
+<style type="text/css">
+    table.dataTable thead th.datatables-header {
+        border-top: 1px solid #dbdbdb;
+        border-right: 1px solid #dbdbdb;
+        border-bottom: 1px solid #dbdbdb;
+        color: #3273dc;
+        height: 2em;
+    }
+    table.dataTable thead th.datatables-header:first-child {
+        border-left: 1px solid #dbdbdb;
+    }
+
+    .dataTables_wrapper .dataTables_paginate .paginate_button {
+    	background-color: white;
+        border-radius: 2px;
+        border-color: #dbdbdb;
+        border-width: 1px;
+        color: #363636;
+        font-size: 0.75rem;
+        height: 2.25em;
+        justify-content: center;
+        padding-bottom: calc(0.375em - 1px);
+        padding-left: 0.75em;
+        padding-right: 0.75em;
+        padding-top: calc(0.375em - 1px);
+        text-align: center;
+        white-space: nowrap;
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+        background: none !important;
+        background-color: #00d1b2 !important;
+        color: #fff !important;
+    }
+</style>
 <script type="text/javascript">
     var editor;
     $(document).ready(function() {
         $('#datatables_table').DataTable( {
-            dom: "Blfrtip",
+            dom: "lfrtip",
             processing: true,
             serverSide: true,
             lengthMenu: [ [10, 15, 20, -1], [10, 15, 20, 'All'] ],
-            pageLength: "[[=dt.page_length ]]",
+            pageLength: [[=dt.page_length ]],
             ajax: "[[=URL(dt.data_function) ]]",
             columns: [
                 [[for field in dt.fields:]]
@@ -19,6 +53,13 @@
                         [[pass]]
                     },
                 [[pass]]
+                    {
+                      data: null,
+                      render: function ( data, type, row ) {
+                        return '[[=A(I(_class="fas fa-edit"), _href="#", _class="button is-small")]]' +
+                            '&nbsp;[[=A(I(_class="fas fa-trash"), _href="#", _class="button is-small")]]'
+                      }
+                    }
                 ],
             columnDefs: [
                 [[for index, field in enumerate(dt.fields):]]
@@ -26,6 +67,7 @@
                         { "visible": false,  "targets": [[=index]] },
                     [[pass]]
                 [[pass]]
+                {className: "has-text-centered", "targets": [[=index + 1]] }
             ],
             order: [
                 [[for sort in dt.sort_sequence:]]
@@ -40,12 +82,13 @@
     } );
 </script>
 <div class="container" style="padding-top: 1em;">
-    <table id="datatables_table" class="table table-condensed table-highlight">
+    <table id="datatables_table" class="table compact stripe hover cell-border order-column" style="padding-top: 1rem;">
         <thead>
             <tr>
                 [[for field in dt.fields:]]
-                    <th>[[=field.label]]</th>
+                    <th class="datatables-header">[[=field.label]]</th>
                 [[pass]]
+                <th class="datatables-header has-text-centered" style="color: black;">ACTIONS</th>
             </tr>
         </thead>
         <tbody>
