@@ -7,7 +7,7 @@ from py4web.utils.form import Form, FormStyleBulma
 from py4web.utils.grid import Grid
 from .common import db, session, auth, unauthenticated
 from .libs.datatables import DataTablesField, DataTablesRequest, DataTablesResponse
-from .libs.simple_table import SimpleTable, get_signature, get_filter_value
+from .libs.simple_table import SimpleTable, get_signature, get_storage_value
 
 
 @action('index', method=['POST', 'GET'])
@@ -25,7 +25,7 @@ def index():
 
     #  check session to see if we've saved a default value
     user_signature = get_signature()
-    search_filter = get_filter_value(user_signature, 'search_filter', None)
+    search_filter = get_storage_value(user_signature, 'search_filter', None)
 
     #  build the search form
     search_form = Form([Field('search', length=50, default=search_filter)],
@@ -42,12 +42,13 @@ def index():
                        (db.zip_code.county.contains(search_filter)) |
                        (db.zip_code.state.contains(search_filter)))
 
-    orderby = [db.zip_code.state, db.zip_code.county, db.zip_code.primary_city]
+    orderby = [~db.zip_code.state, db.zip_code.county, db.zip_code.primary_city]
+
     grid = SimpleTable(url_path,
                        queries,
                        fields=fields,
                        search_form=search_form,
-                       filter_values=dict(search_filter=search_filter),
+                       storage_values=dict(search_filter=search_filter),
                        orderby=orderby,
                        create_url=URL('zip_code/0', vars=dict(user_signature=user_signature)),
                        edit_url=URL('zip_code'),
@@ -62,8 +63,12 @@ def index():
 def zip_code(zip_code_id):
     form = Form(db.zip_code, record=zip_code_id, formstyle=FormStyleBulma)
 
+    print(request.query.__dict__)
+
     if form.accepted:
-        redirect(URL('index', vars=dict(user_signature=request.query.get('user_signature'))))
+        page = request.query.get('page', 1)
+        redirect(URL('index', vars=dict(user_signature=request.query.get('user_signature'),
+                                        page=page)))
 
     return dict(form=form)
 
@@ -73,6 +78,7 @@ def zip_code(zip_code_id):
 def zip_code_delete(zip_code_id):
     result = db(db.zip_code.id == zip_code_id).delete()
     redirect(URL('index', vars=dict(user_signature=request.query.get('user_signature'))))
+
 
 @action('grid', method=['POST', 'GET'])
 @action.uses(session, db, auth, 'index.html')

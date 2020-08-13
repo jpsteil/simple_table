@@ -22,18 +22,18 @@ def get_signature():
     return request.query.get('user_signature', uuid.uuid4())
 
 
-def get_filter_value(user_signature, filter_name, default_value=None):
-    filter_value = default_value
+def get_storage_value(user_signature, filter_name, default_value=None):
+    storage_value = default_value
     if user_signature and user_signature in request.cookies:
         cookie = json.loads(request.get_cookie(user_signature,
                                                default={},
                                                secret=settings.SESSION_SECRET_KEY))
-        filter_value = cookie.get(filter_name, default_value)
+        storage_value = cookie.get(filter_name, default_value)
 
-    return filter_value
+    return storage_value
 
 
-def set_filter_values(user_signature, values_dict):
+def set_storage_values(user_signature, values_dict):
     response.set_cookie(str(user_signature),
                         json.dumps(values_dict),
                         secret=settings.SESSION_SECRET_KEY,
@@ -45,7 +45,7 @@ class SimpleTable:
                  endpoint,
                  queries,
                  search_form=None,
-                 filter_values=None,
+                 storage_values=None,
                  fields=None,
                  hidden_fields=None,
                  show_id=False,
@@ -64,7 +64,7 @@ class SimpleTable:
         :param endpoint: the url of the page. used to build URLs for sorting/searching paging
         :param queries: list of queries used to filter the data
         :param search_form: py4web FORM to be included as the search form
-        :param filter_values: current value of all filter field(s)
+        :param storage_values: values to save between requests
         :param fields: list of fields to display on the list page
         :param hidden_fields: fields included on the field list that should be hidden on the list page
         :param show_id: True/False - show the record id field on list page - default = False
@@ -129,22 +129,21 @@ class SimpleTable:
         self.create_url = create_url
 
         parms = dict()
-        sort_order = request.query.get('sort', self.orderby)
-        if sort_order:
-            #  can be an int or a PyDAL field
-            try:
-                index = int(sort_order)
-                if request.query.get('sort_dir') and request.query.get('sort_dir') == 'desc':
-                    parms['orderby'] = ~self.fields[index]
-                else:
-                    parms['orderby'] = self.fields[index]
-            except:
-                #  if not an int, then assume PyDAL field
-                parms['orderby'] = sort_order
-        else:
-            for field in self.fields:
-                if field not in self.hidden_fields and (field.name != 'id' or field.name == 'id' and self.show_id):
-                    parms['orderby'] = field
+        #  try getting sort order from the request
+        sort_order = request.query.get('sort')
+        if not sort_order:
+            #  see if there is a stored orderby
+            sort_order = get_storage_value(user_signature, 'orderby')
+            if not sort_order:
+                #  use sort order passed in
+                sort_order = self.orderby
+
+        orderby = self.decode_orderby(sort_order)
+        parms['orderby'] = orderby['orderby_expression']
+        storage_values['orderby'] = orderby['orderby_string']
+        if orderby['orderby_string'] != get_storage_value(user_signature, 'orderby'):
+            #  user clicked on a header to change sort order - reset page to 1
+            self.current_page_number = 1
 
         if self.left:
             parms['left'] = self.left
@@ -169,6 +168,7 @@ class SimpleTable:
             self.page_end = self.total_number_of_rows
 
         if self.fields:
+            print('dal query parms', parms)
             self.rows = db(self.query).select(*fields, **parms)
         else:
             self.rows = db(self.query).select(**parms)
@@ -179,9 +179,77 @@ class SimpleTable:
 
         self.include_action_button_text = include_action_button_text
         self.user_signature = user_signature
-        filter_values['page'] = self.current_page_number
+        storage_values['page'] = self.current_page_number
 
-        set_filter_values(user_signature, filter_values)
+        set_storage_values(user_signature, storage_values)
+        self.storage_values = storage_values
+
+    def decode_orderby(self, sort_order):
+        """
+        sort_order can be an int, string, list of strings, pydal fields or list of pydal fields
+
+        need to determine which it is and then return a dict containing the string representation of the
+        orderby and the pydal expression to be used in the query
+
+        :param sort_order:
+        :return: dict(orderby_string=<order by string>, orderby_expression=<pydal orderby expression>)
+        """
+        orderby_expression = None
+        orderby_string = None
+        if sort_order:
+            #  can be an int or a PyDAL field
+            try:
+                index = int(sort_order)
+                #  if we get here, this is a sort request from the table
+                #  if it is in the saved order by then reverse the direction
+                if (request.query.get('sort_dir') and request.query.get('sort_dir') == 'desc') or index < 0:
+                    orderby_expression = [~self.fields[abs(index)]]
+                else:
+                    orderby_expression = [self.fields[index]]
+            except:
+                #  this could be:
+                #  a string
+                #  a list of strings
+                #  a list of dal fields or a single pydal field, treat the same
+                if isinstance(sort_order, str):
+                    #  a string
+                    tablename, fieldname = sort_order.split('.')
+                    orderby_expression = [db[tablename][fieldname]]
+                else:
+                    sort_type = 'dal_field'
+                    for x in sort_order:
+                        if isinstance(x, str):
+                            sort_type = 'str'
+
+                    if sort_type == 'dal_field':
+                        #  a list of dal fields
+                        orderby_expression = sort_order
+                    else:
+                        #  a list of strings
+                        orderby_expression = []
+                        for x in sort_order:
+                            tablename, fieldname = x.replace('~', '').split('.')
+                            if '~' in x:
+                                orderby_expression.append(~db[tablename][fieldname])
+                            else:
+                                orderby_expression.append(db[tablename][fieldname])
+        else:
+            for field in self.fields:
+                if field not in self.hidden_fields and (field.name != 'id' or field.name == 'id' and self.show_id):
+                    orderby_expression = field
+
+        if orderby_expression:
+            try:
+                orderby_string = []
+                for x in orderby_expression:
+                    if ' DESC' in str(x):
+                        orderby_string.append('~' + str(x).replace('"', '').replace(' DESC', ''))
+                    else:
+                        orderby_string.append('%s.%s' % (x.tablename, x.name))
+            except:
+                orderby_string = orderby_expression
+
+        return dict(orderby_string=orderby_string, orderby_expression=orderby_expression)
 
     def iter_pages(self, left_edge=1, right_edge=1, left_current=1, right_current=2):
         """
@@ -288,8 +356,20 @@ class SimpleTable:
                 sort_query_parms['sort'] = index
                 current_sort_dir = 'asc'
 
-                _h = A(heading.replace('_', ' ').upper(),
-                       _href=URL(self.endpoint, vars=sort_query_parms))
+                if '%s.%s' % (field.tablename, field.name) in self.storage_values['orderby']:
+                    sort_query_parms['sort'] = -index
+                    _h = A(heading.replace('_', ' ').upper(),
+                           _href=URL(self.endpoint, vars=sort_query_parms))
+                    _h.append(SPAN(I(_class='fas fa-sort-up'), _class='is-pulled-right'))
+                elif '~%s.%s' % (field.tablename, field.name) in self.storage_values['orderby']:
+                    _h = A(heading.replace('_', ' ').upper(),
+                           _href=URL(self.endpoint, vars=sort_query_parms))
+                    _h.append(SPAN(I(_class='fas fa-sort-down'), _class='is-pulled-right'))
+                else:
+                    _h = A(heading.replace('_', ' ').upper(),
+                           _href=URL(self.endpoint, vars=sort_query_parms))
+
+
                 if 'sort_dir' in sort_query_parms:
                     current_sort_dir = sort_query_parms['sort_dir']
                     del sort_query_parms['sort_dir']
@@ -318,7 +398,9 @@ class SimpleTable:
                 _td = TD(_class='center', _style='text-align: center;')
                 if self.edit_url and self.edit_url != '':
                     if self.include_action_button_text:
-                        _a = A(_href=self.edit_url + '/%s?user_signature=%s' % (row.id, self.user_signature),
+                        _a = A(_href=self.edit_url + '/%s?user_signature=%s&page=%s' % (row.id,
+                                                                                        self.user_signature,
+                                                                                        self.current_page_number),
                                _class='button is-small')
                         _span = SPAN(_class='icon is-small')
                         _span.append(I(_class='fas fa-edit'))
@@ -326,7 +408,9 @@ class SimpleTable:
                         _a.append(SPAN('Edit'))
                     else:
                         _a = A(I(_class='fas fa-edit'),
-                               _href=self.edit_url + '/%s?user_signature=%s' % (row.id, self.user_signature),
+                               _href=self.edit_url + '/%s?user_signature=%s&page=%s' % (row.id,
+                                                                                        self.user_signature,
+                                                                                        self.current_page_number),
                                _class='button is-small')
                     _td.append(_a)
                 if self.delete_url and self.delete_url != '':
