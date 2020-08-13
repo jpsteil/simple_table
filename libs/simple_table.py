@@ -168,7 +168,6 @@ class SimpleTable:
             self.page_end = self.total_number_of_rows
 
         if self.fields:
-            print('dal query parms', parms)
             self.rows = db(self.query).select(*fields, **parms)
         else:
             self.rows = db(self.query).select(**parms)
@@ -369,7 +368,6 @@ class SimpleTable:
                     _h = A(heading.replace('_', ' ').upper(),
                            _href=URL(self.endpoint, vars=sort_query_parms))
 
-
                 if 'sort_dir' in sort_query_parms:
                     current_sort_dir = sort_query_parms['sort_dir']
                     del sort_query_parms['sort_dir']
@@ -382,7 +380,7 @@ class SimpleTable:
                 _thead.append(_th)
 
         if self.edit_url or self.delete_url:
-            _thead.append(TH('ACTIONS', _style='text-align: center;'))
+            _thead.append(TH('ACTIONS', _style='text-align: center; width: 1px;'))
 
         _table.append(_thead)
 

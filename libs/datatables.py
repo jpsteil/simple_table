@@ -3,7 +3,9 @@ from py4web import URL
 
 
 class DataTablesResponse:
-    def __init__(self, fields=None, data_url=None, edit_url=None, delete_url=None, page_length=15, sort_sequence=None):
+    def __init__(self, fields=None, data_url=None, create_url=None,
+                 edit_url=None, delete_url=None, page_length=15,
+                 sort_sequence=None):
         """
         All the data we need to build a datatable
         Contains helper methods to write out the table
@@ -16,6 +18,7 @@ class DataTablesResponse:
         """
         self.fields = fields
         self.data_url = data_url
+        self.create_url = create_url
         self.edit_url = edit_url
         self.delete_url = delete_url
         self.page_length = page_length
@@ -121,6 +124,16 @@ class DataTablesResponse:
         return str(js)
 
     def table(self):
+        _html = DIV()
+        if self.create_url and self.create_url != '':
+            _a = A('', _href=self.create_url,
+                   _class='button', _style='margin-bottom: 1rem;')
+            _span = SPAN(_class='icon is-small')
+            _span.append(I(_class='fas fa-plus'))
+            _a.append(_span)
+            _a.append(SPAN('New'))
+            _html.append(_a)
+
         _table = TABLE(_id='datatables_table',
                        _class='compact stripe hover cell-border order-column',
                        _style='padding-top: 1rem;')
@@ -128,12 +141,13 @@ class DataTablesResponse:
         _tr = TR()
         for field in self.fields:
             _tr.append(TH(field.label, _class='datatables-header'))
-        _tr.append(TH('ACTIONS', _class='datatables-header has-text-centered', _style='color: black;'))
+        _tr.append(TH('ACTIONS', _class='datatables-header has-text-centered', _style='color: black; width: 1px;'))
         _thead.append(_tr)
         _table.append(_thead)
         _table.append(TBODY())
 
-        return str(_table)
+        _html.append(_table)
+        return str(_html)
 
 
 class DataTablesRequest:

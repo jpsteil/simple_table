@@ -3,7 +3,7 @@ import pprint
 from functools import reduce
 
 from py4web import action, request, redirect, URL, Field
-from py4web.utils.form import Form, FormStyleBulma
+from py4web.utils.form import Form, FormStyleBulma, FormStyleDefault
 from py4web.utils.grid import Grid
 from .common import db, session, auth, unauthenticated
 from .libs.datatables import DataTablesField, DataTablesRequest, DataTablesResponse
@@ -61,16 +61,16 @@ def index():
 @action('zip_code/<zip_code_id>', method=['GET', 'POST'])
 @action.uses(session, db, auth, 'libs/edit.html')
 def zip_code(zip_code_id):
-    form = Form(db.zip_code, record=zip_code_id, formstyle=FormStyleBulma)
-
-    print(request.query.__dict__)
+    db.zip_code.id.readable = False
+    db.zip_code.id.writable = False
+    form = Form(db.zip_code, record=zip_code_id, formstyle=FormStyleSimpleTable)
 
     if form.accepted:
         page = request.query.get('page', 1)
         redirect(URL('index', vars=dict(user_signature=request.query.get('user_signature'),
                                         page=page)))
 
-    return dict(form=form)
+    return dict(form=form, id=zip_code_id)
 
 
 @action('zip_code/delete/<zip_code_id>', method=['GET', 'POST'])
@@ -118,6 +118,7 @@ def datatables():
                                     DataTablesField(name='county'),
                                     DataTablesField(name='primary_city')],
                             data_url=URL('datatables_data'),
+                            create_url=URL('zip_code_dt/0'),
                             edit_url=URL('zip_code_dt/record_id'),
                             delete_url=URL('zip_code_dt/delete/record_id'),
                             sort_sequence=[[1, 'asc']])
@@ -163,12 +164,14 @@ def datatables_data():
 @action('zip_code_dt/<zip_code_id>', method=['GET', 'POST'])
 @action.uses(session, db, auth, 'libs/edit.html')
 def zip_code_dt(zip_code_id):
-    form = Form(db.zip_code, record=zip_code_id, formstyle=FormStyleBulma)
+    db.zip_code.id.readable = False
+    db.zip_code.id.writable = False
+    form = Form(db.zip_code, record=zip_code_id, formstyle=FormStyleSimpleTable)
 
     if form.accepted:
         redirect(URL('datatables'))
 
-    return dict(form=form)
+    return dict(form=form, id=zip_code_id)
 
 
 @action('zip_code_dt/delete/<zip_code_id>', method=['GET', 'POST'])
@@ -176,3 +179,27 @@ def zip_code_dt(zip_code_id):
 def zip_code_dt_delete(zip_code_id):
     result = db(db.zip_code.id == zip_code_id).delete()
     redirect(URL('datatables'))
+
+
+def FormStyleSimpleTable(table, vars, errors, readonly, deletable):
+    classes = {
+        "outer": "field",
+        "inner": "control",
+        "label": "label is-uppercase",
+        "info": "help",
+        "error": "help is-danger py4web-validation-error",
+        "submit": "button is-success",
+        "input": "input",
+        "input[type=text]": "input",
+        "input[type=date]": "input",
+        "input[type=time]": "input",
+        "input[type=datetime-local]": "input",
+        "input[type=radio]": "radio",
+        "input[type=checkbox]": "checkbox",
+        "input[type=submit]": "button",
+        "input[type=password]": "password",
+        "input[type=file]": "file",
+        "select": "select",
+        "textarea": "textarea",
+    }
+    return FormStyleDefault(table, vars, errors, readonly, deletable, classes)
