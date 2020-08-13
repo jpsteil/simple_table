@@ -5,6 +5,7 @@ from functools import reduce
 from py4web import action, request, redirect, URL, Field
 from py4web.utils.form import Form, FormStyleBulma, FormStyleDefault
 from py4web.utils.grid import Grid
+from pydal.validators import IS_IN_SET
 from .common import db, session, auth, unauthenticated
 from .libs.datatables import DataTablesField, DataTablesRequest, DataTablesResponse
 from .libs.simple_table import SimpleTable, get_signature, get_storage_value
@@ -30,13 +31,18 @@ def index():
     #  check session to see if we've saved a default value
     user_signature = get_signature()
     search_filter = get_storage_value(user_signature, 'search_filter', None)
+    search_type = get_storage_value(user_signature, 'search_type', None)
 
     #  build the search form
-    search_form = Form([Field('search', length=50, default=search_filter)],
-                       keep_values=True, formstyle=FormStyleBulma)
+    zip_type_requires = IS_IN_SET([x.zip_type for x in db(db.zip_code.id > 0).select(db.zip_code.zip_type, distinct=True)])
+    search_form = Form([Field('zip_type', length=20, requires=zip_type_requires),
+                        Field('search', length=50, default=search_filter)],
+                       keep_values=True, formstyle=FormStyleSimpleTable)
+    print(search_form.__dict__)
 
     if search_form.accepted:
         search_filter = search_form.vars['search']
+        search_type = search_form.vars['zip_type']
 
     queries = [(db.zip_code.id > 0)]
     if search_filter:
@@ -45,6 +51,8 @@ def index():
                        (db.zip_code.primary_city.contains(search_filter)) |
                        (db.zip_code.county.contains(search_filter)) |
                        (db.zip_code.state.contains(search_filter)))
+    if search_type:
+        queries.append(db.zip_code.zip_type == search_type)
 
     orderby = [~db.zip_code.state, db.zip_code.county, db.zip_code.primary_city]
 
@@ -67,8 +75,11 @@ def index():
 def zip_code(zip_code_id):
     db.zip_code.id.readable = False
     db.zip_code.id.writable = False
-    form = Form(db.zip_code, record=zip_code_id, formstyle=FormStyleSimpleTable)
 
+    db.zip_code.zip_type.requires = IS_IN_SET([x.zip_type for x in db(db.zip_code.id > 0).select(db.zip_code.zip_type, distinct=True)])
+    db.zip_code.timezone.requires = IS_IN_SET([x.timezone for x in db(db.zip_code.id > 0).select(db.zip_code.timezone, distinct=True)])
+
+    form = Form(db.zip_code, record=zip_code_id, formstyle=FormStyleSimpleTable)
     if form.accepted:
         page = request.query.get('page', 1)
         redirect(URL('index', vars=dict(user_signature=request.query.get('user_signature'),
@@ -210,7 +221,7 @@ def FormStyleSimpleTable(table, vars, errors, readonly, deletable):
         "input[type=submit]": "button",
         "input[type=password]": "password",
         "input[type=file]": "file",
-        "select": "select",
+        "select": "control select",
         "textarea": "textarea",
     }
     return FormStyleDefault(table, vars, errors, readonly, deletable, classes)
