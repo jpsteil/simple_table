@@ -13,9 +13,6 @@ All three examples are working over the same sqlite database of zip code I downl
 Random thoughts on each
 
 #### Simple Table
-
-* Delete not coded
-* user_signature is a variable I pass through url arguments which gives me the cookie containing the parameters.  Trying to get this work work but having issues on returning from editing a record.
 * currently the id field must be included in fields passed to SimpleTable - will be adding a show or hide id parm
 
 The concept for filtering is that you define and manage your own filter form and the querying done with the results.
