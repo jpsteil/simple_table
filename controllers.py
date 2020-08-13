@@ -8,6 +8,10 @@ from py4web.utils.grid import Grid
 from .common import db, session, auth, unauthenticated
 from .libs.datatables import DataTablesField, DataTablesRequest, DataTablesResponse
 from .libs.simple_table import SimpleTable, get_signature, get_storage_value
+from py4web.utils.publisher import Publisher, ALLOW_ALL_POLICY  # for ajax_grid
+
+#  exposes services necessary to access the db.thing via ajax
+publisher = Publisher(db, policy=ALLOW_ALL_POLICY)
 
 
 @action('index', method=['POST', 'GET'])
@@ -179,6 +183,13 @@ def zip_code_dt(zip_code_id):
 def zip_code_dt_delete(zip_code_id):
     result = db(db.zip_code.id == zip_code_id).delete()
     redirect(URL('datatables'))
+
+
+# exposed as /examples/ajaxgrid
+@action("ajax_grid")
+@action.uses("ajax_grid.html")
+def ajax_grid():
+    return dict(grid=publisher.grid(db.zip_code))
 
 
 def FormStyleSimpleTable(table, vars, errors, readonly, deletable):
