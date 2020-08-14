@@ -5,7 +5,7 @@ from functools import reduce
 from py4web import action, request, redirect, URL, Field
 from py4web.utils.form import Form, FormStyleBulma, FormStyleDefault
 from py4web.utils.grid import Grid
-from pydal.validators import IS_IN_SET
+from pydal.validators import IS_NULL_OR, IS_IN_SET
 from .common import db, session, auth, unauthenticated
 from .libs.datatables import DataTablesField, DataTablesRequest, DataTablesResponse
 from .libs.simple_table import SimpleTable, get_signature, get_storage_value
@@ -30,19 +30,31 @@ def index():
 
     #  check session to see if we've saved a default value
     user_signature = get_signature()
-    search_filter = get_storage_value(user_signature, 'search_filter', None)
+    search_state = get_storage_value(user_signature, 'search_state', None)
     search_type = get_storage_value(user_signature, 'search_type', None)
+    search_filter = get_storage_value(user_signature, 'search_filter', None)
 
     #  build the search form
-    zip_type_requires = IS_IN_SET([x.zip_type for x in db(db.zip_code.id > 0).select(db.zip_code.zip_type, distinct=True)])
-    search_form = Form([Field('zip_type', length=20, requires=zip_type_requires),
-                        Field('search', length=50, default=search_filter)],
-                       keep_values=True, formstyle=FormStyleSimpleTable)
-    print(search_form.__dict__)
+    zip_type_requires = IS_NULL_OR(IS_IN_SET([x.zip_type for x in db(db.zip_code.id > 0).select(db.zip_code.zip_type,
+                                                                                                orderby=db.zip_code.zip_type,
+                                                                                                distinct=True)]))
+    zip_state_requires = IS_NULL_OR(IS_IN_SET([x.state for x in db(db.zip_code.id > 0).select(db.zip_code.state,
+                                                                                              orderby=db.zip_code.state,
+                                                                                              distinct=True)]))
+    search_form = Form([Field('state', length=20, requires=zip_state_requires,
+                              default=search_state,
+                              _title='Filter by State'),
+                        Field('zip_type', length=20, requires=zip_type_requires,
+                              default=search_type,
+                              _title='Select Filter by ZIP Type'),
+                        Field('search', length=50, default=search_filter, _placeholder='...search text...',
+                              _title='Enter search text and click on Filter')],
+                       keep_values=True, formstyle=FormStyleSimpleTable, )
 
     if search_form.accepted:
-        search_filter = search_form.vars['search']
+        search_state = search_form.vars['state']
         search_type = search_form.vars['zip_type']
+        search_filter = search_form.vars['search']
 
     queries = [(db.zip_code.id > 0)]
     if search_filter:
@@ -51,6 +63,9 @@ def index():
                        (db.zip_code.primary_city.contains(search_filter)) |
                        (db.zip_code.county.contains(search_filter)) |
                        (db.zip_code.state.contains(search_filter)))
+    if search_state:
+        queries.append(db.zip_code.state == search_state)
+
     if search_type:
         queries.append(db.zip_code.zip_type == search_type)
 
@@ -60,11 +75,14 @@ def index():
                        queries,
                        fields=fields,
                        search_form=search_form,
-                       storage_values=dict(search_filter=search_filter),
+                       storage_values=dict(search_state=search_state,
+                                           search_type=search_type,
+                                           search_filter=search_filter),
                        orderby=orderby,
                        create_url=URL('zip_code/0', vars=dict(user_signature=user_signature)),
                        edit_url=URL('zip_code'),
                        delete_url=URL('zip_code/delete'),
+                       search_button='Filter',
                        user_signature=user_signature)
 
     return dict(grid=grid)
@@ -76,8 +94,12 @@ def zip_code(zip_code_id):
     db.zip_code.id.readable = False
     db.zip_code.id.writable = False
 
-    db.zip_code.zip_type.requires = IS_IN_SET([x.zip_type for x in db(db.zip_code.id > 0).select(db.zip_code.zip_type, distinct=True)])
-    db.zip_code.timezone.requires = IS_IN_SET([x.timezone for x in db(db.zip_code.id > 0).select(db.zip_code.timezone, distinct=True)])
+    db.zip_code.zip_type.requires = IS_IN_SET(
+        [x.zip_type for x in db(db.zip_code.id > 0).select(db.zip_code.zip_type, distinct=True)])
+    db.zip_code.state.requires = IS_IN_SET(
+        [x.state for x in db(db.zip_code.id > 0).select(db.zip_code.state, distinct=True)])
+    db.zip_code.timezone.requires = IS_IN_SET(
+        [x.timezone for x in db(db.zip_code.id > 0).select(db.zip_code.timezone, distinct=True)])
 
     form = Form(db.zip_code, record=zip_code_id, formstyle=FormStyleSimpleTable)
     if form.accepted:
@@ -181,6 +203,14 @@ def datatables_data():
 def zip_code_dt(zip_code_id):
     db.zip_code.id.readable = False
     db.zip_code.id.writable = False
+
+    db.zip_code.zip_type.requires = IS_IN_SET(
+        [x.zip_type for x in db(db.zip_code.id > 0).select(db.zip_code.zip_type, distinct=True)])
+    db.zip_code.state.requires = IS_IN_SET(
+        [x.state for x in db(db.zip_code.id > 0).select(db.zip_code.state, distinct=True)])
+    db.zip_code.timezone.requires = IS_IN_SET(
+        [x.timezone for x in db(db.zip_code.id > 0).select(db.zip_code.timezone, distinct=True)])
+
     form = Form(db.zip_code, record=zip_code_id, formstyle=FormStyleSimpleTable)
 
     if form.accepted:

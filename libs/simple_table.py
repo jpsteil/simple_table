@@ -1,7 +1,7 @@
 from functools import reduce
 
-from yatl.helpers import DIV, TABLE, TR, TD, TH, A, SPAN, I, THEAD, P, TAG
-
+from yatl.helpers import DIV, TABLE, TR, TD, TH, A, SPAN, I, THEAD, P, TAG, INPUT, SCRIPT
+from pydal.validators import IS_NULL_OR, IS_IN_SET
 from py4web import request, URL, response
 from .. import settings
 from .. models import db
@@ -57,6 +57,7 @@ class SimpleTable:
                  edit_url='',
                  delete_url='',
                  include_action_button_text=False,
+                 search_button=None,
                  user_signature=None):
         """
         SimpleTable is a searchable/sortable/pageable grid
@@ -76,6 +77,7 @@ class SimpleTable:
         :param edit_url: URL to redirect to for editing records
         :param delete_url: URL to redirect to for deleting records
         :param include_action_button_text: include text on action buttons - default = False
+        :param search_button: text to appear on the search/filter button
         :param user_signature: id of the cookie containing saved values
         """
         self.query_parms = dict()
@@ -127,6 +129,8 @@ class SimpleTable:
         self.edit_url = edit_url
         self.delete_url = delete_url
         self.create_url = create_url
+
+        self.search_button = search_button
 
         parms = dict()
         #  try getting sort order from the request
@@ -316,21 +320,19 @@ class SimpleTable:
             _sf.append(self.search_form.custom['begin'])
             _tr = TR()
             for field in self.search_form.table:
-                _fs = SPAN(_style='padding-right: .5rem;')
                 _td = TD(_style='padding-right: .5rem;')
                 if field.type == 'boolean':
-                    _fs.append(self.search_form.custom['widgets'][field.name])
-                    _fs.append(field.label)
                     _td.append(self.search_form.custom['widgets'][field.name])
                     _td.append(field.label)
                 else:
-                    _fs.append(self.search_form.custom['widgets'][field.name])
                     _td.append(self.search_form.custom['widgets'][field.name])
                 if field.name in self.search_form.custom['errors'] and self.search_form.custom['errors'][field.name]:
-                    _fs.append(SPAN(self.search_form.custom['errors'][field.name], _style="color:#ff0000"))
                     _td.append(DIV(self.search_form.custom['errors'][field.name], _style="color:#ff0000"))
                 _tr.append(_td)
-            _tr.append(TD(self.search_form.custom['submit']))
+            if self.search_button:
+                _tr.append(TD(INPUT(_class='button', _type='submit', _value=self.search_button)))
+            else:
+                _tr.append(TD(self.search_form.custom['submit']))
             _sf.append(TABLE(_tr))
             for hidden_widget in self.search_form.custom['hidden_widgets'].keys():
                 _sf.append(self.search_form.custom['hidden_widgets'][hidden_widget])
