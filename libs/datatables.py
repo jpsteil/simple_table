@@ -141,7 +141,8 @@ class DataTablesResponse:
         _tr = TR()
         for field in self.fields:
             _tr.append(TH(field.label, _class='datatables-header'))
-        _tr.append(TH('ACTIONS', _class='datatables-header has-text-centered', _style='color: black; width: 1px;'))
+        _tr.append(TH('ACTIONS', _class='datatables-header has-text-centered',
+                      _style='color: black; width: 1px; white-space: nowrap;'))
         _thead.append(_tr)
         _table.append(_thead)
         _table.append(TBODY())
