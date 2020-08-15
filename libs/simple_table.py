@@ -3,6 +3,7 @@ from functools import reduce
 from yatl.helpers import DIV, TABLE, TR, TD, TH, A, SPAN, I, THEAD, P, TAG, INPUT, SCRIPT
 from pydal.validators import IS_NULL_OR, IS_IN_SET
 from py4web import request, URL, response
+from py4web.utils.form import FormStyleDefault
 from .. import settings
 from .. models import db
 import uuid
@@ -34,10 +35,15 @@ def get_storage_value(user_signature, filter_name, default_value=None):
 
 
 def set_storage_values(user_signature, values_dict):
+    #  default the timeout to 1 hour - override by setting SIMPLE_TABLE_SIGNATURE_MAX_AGE in settings
+    try:
+        max_age = settings.SIMPLE_TABLE_SIGNATURE_MAX_AGE
+    except:
+        max_age = 3600
     response.set_cookie(str(user_signature),
                         json.dumps(values_dict),
                         secret=settings.SESSION_SECRET_KEY,
-                        max_age=settings.SIMPLE_TABLE_SIGNATURE_MAX_AGE)
+                        max_age=max_age)
 
 
 class SimpleTable:
@@ -347,7 +353,12 @@ class SimpleTable:
         # build the header
         _thead = THEAD()
         for index, field in enumerate(self.fields):
-            if field not in self.hidden_fields and (field.name != 'id' or field.name == 'id' and self.show_id):
+            print('building header', index, field)
+            print(field.name)
+            print(self.hidden_fields)
+            print([x.name for x in self.hidden_fields])
+            if field.name not in [x.name for x in self.hidden_fields] and (field.name != 'id' or (field.name == 'id' and self.show_id)):
+                print('passed')
                 try:
                     heading = self.headings[index]
                 except:
@@ -382,7 +393,7 @@ class SimpleTable:
                 _thead.append(_th)
 
         if self.edit_url or self.delete_url:
-            _thead.append(TH('ACTIONS', _style='text-align: center; width: 1px;'))
+            _thead.append(TH('ACTIONS', _style='text-align: center; width: 1px; white-space: nowrap;'))
 
         _table.append(_thead)
 
@@ -390,12 +401,12 @@ class SimpleTable:
         for row in self.rows:
             _tr = TR()
             for field in self.fields:
-                if field not in self.hidden_fields and (field.name != 'id' or field.name == 'id' and self.show_id):
+                if field.name not in [x.name for x in self.hidden_fields] and (field.name != 'id' or (field.name == 'id' and self.show_id)):
                     _tr.append(TD(row[field.name] if row and field and field.name in row and row[field.name] else ''))
 
             _td = None
             if (self.edit_url and self.edit_url != '') or (self.delete_url and self.delete_url != ''):
-                _td = TD(_class='center', _style='text-align: center;')
+                _td = TD(_class='center', _style='text-align: center; white-space: nowrap;')
                 if self.edit_url and self.edit_url != '':
                     if self.include_action_button_text:
                         _a = A(_href=self.edit_url + '/%s?user_signature=%s&page=%s' % (row.id,
@@ -459,3 +470,27 @@ class SimpleTable:
             _html.append(_pager)
 
         return str(_html)
+
+
+def FormStyleSimpleTable(table, vars, errors, readonly, deletable):
+    classes = {
+        "outer": "field",
+        "inner": "control",
+        "label": "label is-uppercase",
+        "info": "help",
+        "error": "help is-danger py4web-validation-error",
+        "submit": "button is-success",
+        "input": "input",
+        "input[type=text]": "input",
+        "input[type=date]": "input",
+        "input[type=time]": "input",
+        "input[type=datetime-local]": "input",
+        "input[type=radio]": "radio",
+        "input[type=checkbox]": "checkbox",
+        "input[type=submit]": "button",
+        "input[type=password]": "password",
+        "input[type=file]": "file",
+        "select": "control select",
+        "textarea": "textarea",
+    }
+    return FormStyleDefault(table, vars, errors, readonly, deletable, classes)
