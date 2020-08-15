@@ -19,8 +19,6 @@ publisher = Publisher(db, policy=ALLOW_ALL_POLICY)
 @action('/', method=['POST', 'GET'])
 @action.uses(session, db, auth, 'libs/simple_table.html')
 def index():
-    url_path = 'index'
-
     fields = [db.zip_code.id,
               db.zip_code.zip_code,
               db.zip_code.zip_type,
@@ -71,17 +69,16 @@ def index():
 
     orderby = [~db.zip_code.state, db.zip_code.county, db.zip_code.primary_city]
 
-    grid = SimpleTable(url_path,
-                       queries,
+    grid = SimpleTable(queries,
                        fields=fields,
                        search_form=search_form,
                        storage_values=dict(search_state=search_state,
                                            search_type=search_type,
                                            search_filter=search_filter),
                        orderby=orderby,
-                       create_url=URL('zip_code/0', vars=dict(user_signature=user_signature)),
-                       edit_url=URL('zip_code'),
-                       delete_url=URL('zip_code/delete'),
+                       create=URL('zip_code/0'),
+                       editable=URL('zip_code'),
+                       deletable=URL('zip_code/delete'),
                        search_button='Filter',
                        user_signature=user_signature,
                        include_action_button_text=True)

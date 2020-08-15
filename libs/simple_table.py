@@ -48,55 +48,44 @@ def set_storage_values(user_signature, values_dict):
 
 class SimpleTable:
     def __init__(self,
-                 endpoint,
                  queries,
                  search_form=None,
                  storage_values=None,
                  fields=None,
-                 hidden_fields=None,
                  show_id=False,
                  orderby=None,
                  left=None,
                  headings=None,
                  per_page=settings.SIMPLE_TABLE_ROWS_PER_PAGE,
-                 create_url='',
-                 edit_url='',
-                 delete_url='',
+                 create=False,
+                 editable=False,
+                 deletable=False,
                  include_action_button_text=False,
                  search_button=None,
                  user_signature=None):
         """
         SimpleTable is a searchable/sortable/pageable grid
 
-        :param endpoint: the url of the page. used to build URLs for sorting/searching paging
         :param queries: list of queries used to filter the data
         :param search_form: py4web FORM to be included as the search form
         :param storage_values: values to save between requests
-        :param fields: list of fields to display on the list page
-        :param hidden_fields: fields included on the field list that should be hidden on the list page
-        :param show_id: True/False - show the record id field on list page - default = False
+        :param fields: list of fields to display on the list page, if blank, glean tablename from first query
+        :              and use all fields of that table
+        :param show_id: show the record id field on list page - default = False
         :param orderby: pydal orderby field or list of fields
         :param left: if joining other tables, specify the pydal left expression here
         :param headings: list of headings to be used for list page - if not provided use the field label
         :param per_page: # of rows to display per page - gets default from app settings
-        :param create_url: URL to redirect to for creating records
-        :param edit_url: URL to redirect to for editing records
-        :param delete_url: URL to redirect to for deleting records
+        :param create: URL to redirect to for creating records - set to False to not display the button
+        :param editable: URL to redirect to for editing records - set to False to not display the button
+        :param deletable: URL to redirect to for deleting records - set to False to not display the button
         :param include_action_button_text: include text on action buttons - default = False
         :param search_button: text to appear on the search/filter button
         :param user_signature: id of the cookie containing saved values
         """
-        self.query_parms = dict()
-        if request.query_string and isinstance(request.query_string, str):
-            #  split the key/value pairs
-            kvp = request.query_string.split('&')
-            for query_parm in kvp:
-                #  split the parm into key and value
-                key, value = query_parm.split('=')
-                self.query_parms[key] = value
+        self.query_parms = request.params
+        self.endpoint = request.route.call.__name__
 
-        #  get instance arguments
-        self.endpoint = endpoint
         self.search_form = search_form
 
         self.query = reduce(lambda a, b: (a & b), queries)
@@ -107,13 +96,14 @@ class SimpleTable:
                 self.fields = fields
             else:
                 self.fields = [fields]
+        else:
+            q = self.query
+            while q.second != 0:
+                q = q.first
 
-        self.hidden_fields = []
-        if hidden_fields:
-            if isinstance(hidden_fields, list):
-                self.hidden_fields = hidden_fields
-            else:
-                self.hidden_fields = [hidden_fields]
+            self.fields = [db[q.first.table][x] for x in q.first.table.fields()]
+
+        self.hidden_fields = [field for field in self.fields if not field.readable]
 
         self.show_id = show_id
         self.orderby = orderby
@@ -132,9 +122,9 @@ class SimpleTable:
         self.current_page_number = current_page_number if isinstance(current_page_number, int) \
             else int(current_page_number)
 
-        self.edit_url = edit_url
-        self.delete_url = delete_url
-        self.create_url = create_url
+        self.editable = editable
+        self.deletable = deletable
+        self.create = create
 
         self.search_button = search_button
 
@@ -158,10 +148,7 @@ class SimpleTable:
         if self.left:
             parms['left'] = self.left
 
-        if self.fields:
-            self.total_number_of_rows = db(self.query).count()
-        else:
-            self.total_number_of_rows = db(self.query).count()
+        self.total_number_of_rows = db(self.query).count()
 
         #  if at a high page number and then filter causes less records to be displayed, reset to page 1
         if (self.current_page_number - 1) * per_page > self.total_number_of_rows:
@@ -178,7 +165,7 @@ class SimpleTable:
             self.page_end = self.total_number_of_rows
 
         if self.fields:
-            self.rows = db(self.query).select(*fields, **parms)
+            self.rows = db(self.query).select(*self.fields, **parms)
         else:
             self.rows = db(self.query).select(**parms)
 
@@ -311,8 +298,8 @@ class SimpleTable:
         """
         _html = DIV(_class='field')
         _top_div = DIV(_style='padding-bottom: 1rem;')
-        if self.create_url and self.create_url != '':
-            _a = A('', _href=self.create_url,
+        if self.create and self.create != '':
+            _a = A('', _href=self.create,
                    _class='button')
             _span = SPAN(_class='icon is-small')
             _span.append(I(_class='fas fa-plus'))
@@ -353,12 +340,7 @@ class SimpleTable:
         # build the header
         _thead = THEAD()
         for index, field in enumerate(self.fields):
-            print('building header', index, field)
-            print(field.name)
-            print(self.hidden_fields)
-            print([x.name for x in self.hidden_fields])
             if field.name not in [x.name for x in self.hidden_fields] and (field.name != 'id' or (field.name == 'id' and self.show_id)):
-                print('passed')
                 try:
                     heading = self.headings[index]
                 except:
@@ -392,7 +374,7 @@ class SimpleTable:
 
                 _thead.append(_th)
 
-        if self.edit_url or self.delete_url:
+        if self.editable or self.deletable:
             _thead.append(TH('ACTIONS', _style='text-align: center; width: 1px; white-space: nowrap;'))
 
         _table.append(_thead)
@@ -405,11 +387,11 @@ class SimpleTable:
                     _tr.append(TD(row[field.name] if row and field and field.name in row and row[field.name] else ''))
 
             _td = None
-            if (self.edit_url and self.edit_url != '') or (self.delete_url and self.delete_url != ''):
+            if (self.editable and self.editable != '') or (self.deletable and self.deletable != ''):
                 _td = TD(_class='center', _style='text-align: center; white-space: nowrap;')
-                if self.edit_url and self.edit_url != '':
+                if self.editable and self.editable != '':
                     if self.include_action_button_text:
-                        _a = A(_href=self.edit_url + '/%s?user_signature=%s&page=%s' % (row.id,
+                        _a = A(_href=self.editable + '/%s?user_signature=%s&page=%s' % (row.id,
                                                                                         self.user_signature,
                                                                                         self.current_page_number),
                                _class='button is-small')
@@ -419,14 +401,14 @@ class SimpleTable:
                         _a.append(SPAN('Edit'))
                     else:
                         _a = A(I(_class='fas fa-edit'),
-                               _href=self.edit_url + '/%s?user_signature=%s&page=%s' % (row.id,
+                               _href=self.editable + '/%s?user_signature=%s&page=%s' % (row.id,
                                                                                         self.user_signature,
                                                                                         self.current_page_number),
                                _class='button is-small')
                     _td.append(_a)
-                if self.delete_url and self.delete_url != '':
+                if self.deletable and self.deletable != '':
                     if self.include_action_button_text:
-                        _a = A(_href=self.delete_url + '/%s?user_signature=%s' % (row.id, self.user_signature),
+                        _a = A(_href=self.deletable + '/%s?user_signature=%s' % (row.id, self.user_signature),
                                _class='confirmation button is-small')
                         _span = SPAN(_class='icon is-small action-button-image')
                         _span.append(I(_class='fas fa-trash'))
@@ -434,7 +416,7 @@ class SimpleTable:
                         _a.append(SPAN('Delete'))
                     else:
                         _a = A(I(_class='fas fa-trash'),
-                               _href=self.delete_url + '/%s?user_signature=%s' % (row.id, self.user_signature),
+                               _href=self.deletable + '/%s?user_signature=%s' % (row.id, self.user_signature),
                                _class='confirmation button is-small', _message='Delete record ' +str(row.id) )
                     _td.append(_a)
                 _tr.append(_td)
