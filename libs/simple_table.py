@@ -34,10 +34,15 @@ def get_storage_value(user_signature, filter_name, default_value=None):
 
 
 def set_storage_values(user_signature, values_dict):
+    #  default the timeout to 1 hour - override by setting SIMPLE_TABLE_SIGNATURE_MAX_AGE in settings
+    try:
+        max_age = settings.SIMPLE_TABLE_SIGNATURE_MAX_AGE
+    except:
+        max_age = 3600
     response.set_cookie(str(user_signature),
                         json.dumps(values_dict),
                         secret=settings.SESSION_SECRET_KEY,
-                        max_age=settings.SIMPLE_TABLE_SIGNATURE_MAX_AGE)
+                        max_age=max_age)
 
 
 class SimpleTable:
@@ -382,7 +387,7 @@ class SimpleTable:
                 _thead.append(_th)
 
         if self.edit_url or self.delete_url:
-            _thead.append(TH('ACTIONS', _style='text-align: center; width: 1px;'))
+            _thead.append(TH('ACTIONS', _style='text-align: center; width: 1px; white-space: nowrap;'))
 
         _table.append(_thead)
 
@@ -395,7 +400,7 @@ class SimpleTable:
 
             _td = None
             if (self.edit_url and self.edit_url != '') or (self.delete_url and self.delete_url != ''):
-                _td = TD(_class='center', _style='text-align: center;')
+                _td = TD(_class='center', _style='text-align: center; white-space: nowrap;')
                 if self.edit_url and self.edit_url != '':
                     if self.include_action_button_text:
                         _a = A(_href=self.edit_url + '/%s?user_signature=%s&page=%s' % (row.id,

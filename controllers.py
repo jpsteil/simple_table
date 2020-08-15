@@ -83,7 +83,8 @@ def index():
                        edit_url=URL('zip_code'),
                        delete_url=URL('zip_code/delete'),
                        search_button='Filter',
-                       user_signature=user_signature)
+                       user_signature=user_signature,
+                       include_action_button_text=True)
 
     return dict(grid=grid)
 

@@ -7,11 +7,12 @@
     <link rel="stylesheet" href="css/bulma.css">
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.10.21/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/scroller/2.0.2/css/scroller.dataTables.min.css">
     <script defer src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
     <script src="https://code.jquery.com/jquery-3.4.1.min.js"
             integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
     <script type="text/javascript" src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
-
+    <script type="text/javascript" src="https://cdn.datatables.net/scroller/2.0.2/js/dataTables.scroller.min.js"></script>
     [[block page_head]]<!-- individual pages can customize header here -->[[end]]
   </head>
   <body>
@@ -29,9 +30,9 @@
       </div>
       <div id="the-navbar-menu" class="navbar-menu">
         <div class="navbar-start">
-            <a class="navbar-item" href="[[=URL('grid')]]">HTML Grid Example</a>
-            <a class="navbar-item" href="[[=URL('datatables')]]">Datatables.net Example</a>
-            <a class="navbar-item" href="[[=URL('ajax_grid')]]">AJAX Grid Example</a>
+            <a class="navbar-item" href="[[=URL('grid')]]">HTML Grid</a>
+            <a class="navbar-item" href="[[=URL('datatables')]]">Datatables.net</a>
+            <a class="navbar-item" href="[[=URL('ajax_grid')]]">AJAX Grid</a>
             [[block page_menu_items]]<!-- individual pages can add menu items here -->[[end]]
         </div>
         <div class="navbar-end">
