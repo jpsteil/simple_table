@@ -434,11 +434,31 @@ class SimpleTable:
             _table.append(_thead)
 
             #  build the rows
+            _html.append(XML('<script src="https://momentjs.com/downloads/moment.js"></script>'))
+
             for row in self.rows:
                 _tr = TR()
                 for field in self.fields:
-                    if field.name not in [x.name for x in self.hidden_fields] and (field.name != 'id' or (field.name == 'id' and self.show_id)):
-                        _tr.append(TD(row[field.name] if row and field and field.name in row and row[field.name] else ''))
+                    if field.name not in [x.name for x in self.hidden_fields] and \
+                            (field.name != 'id' or (field.name == 'id' and self.show_id)):
+                        if field.type == 'date':
+                            _tr.append(
+                                TD(XML("<script>\ndocument.write("
+                                       "moment(\"%s\").format('L'));\n</script>" % row[field.name]) \
+                                       if row and field and field.name in row and row[field.name] else '',
+                                   _class='has-text-centered'))
+                        elif field.type == 'boolean':
+                            #  True/False - only show on True, blank for False
+                            if row and field and field.name in row and row[field.name]:
+                                _td = TD(_class='has-text-centered')
+                                _span = SPAN(_class='icon is-small')
+                                _span.append(I(_class='fas fa-check-circle'))
+                                _td.append(_span)
+                                _tr.append(_td)
+                            else:
+                                _tr.append(TD(XML('&nbsp;')))
+                        else:
+                            _tr.append(TD(row[field.name] if row and field and field.name in row and row[field.name] else ''))
 
                 _td = None
                 if (self.editable and self.editable != '') or (self.deletable and self.deletable != ''):
@@ -517,6 +537,7 @@ class SimpleTable:
 
             if self.deletable:
                 _html.append((XML("""
+                    <script src="https://momentjs.com/downloads/moment.js"></script>
                     <script type="text/javascript">
                     $('.confirmation').on('click', function () {
                         return confirm($(this).attr('message') +' - Are you sure?');
