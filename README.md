@@ -15,9 +15,9 @@ All three examples are working over the same sqlite database of zip code I downl
 Random thoughts on each
 
 #### Simple Table
-* currently the id field must be included in fields passed to SimpleTable - will be adding a show or hide id parm
+A CRUD tool for py4web.  Similar to what SQLFORM.grid provided in web2py.  Not close to being as flexible.  Needs to be vetted for security vulnerabilities.
 
-The concept for filtering is that you define and manage your own filter form and the querying done with the results.
+Search is different that web2py SQLFORM.grid.  In essense, you provide your own FORM that will be rendered and then you build the queries to pass to SimpleTable for it to get the data.
 
 #### HTML Grid
 * I like my edit buttons the right side of each row - I need to work on adding that
