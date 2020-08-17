@@ -16,9 +16,10 @@ publisher = Publisher(db, policy=ALLOW_ALL_POLICY)
 
 
 @action('index', method=['POST', 'GET'])
+@action('index/<action>/<tablename>/<record_id>', method=['POST', 'GET'])
 @action('/', method=['POST', 'GET'])
 @action.uses(session, db, auth, 'libs/simple_table.html')
-def index():
+def index(action=None, tablename=None, record_id=None):
     fields = [db.zip_code.id,
               db.zip_code.zip_code,
               db.zip_code.zip_type,
@@ -69,6 +70,18 @@ def index():
 
     orderby = [~db.zip_code.state, db.zip_code.county, db.zip_code.primary_city]
 
+    zip_type_requires = IS_IN_SET([x.zip_type for x in db(db.zip_code.id > 0).select(db.zip_code.zip_type,
+                                                                                     orderby=db.zip_code.zip_type,
+                                                                                     distinct=True)])
+    zip_state_requires = IS_IN_SET([x.state for x in db(db.zip_code.id > 0).select(db.zip_code.state,
+                                                                                   orderby=db.zip_code.state,
+                                                                                   distinct=True)])
+    zip_timezone_requires = IS_IN_SET([x.timezone for x in db(db.zip_code.id > 0).select(db.zip_code.timezone,
+                                                                                         distinct=True)])
+    requires = {'zip_code.zip_type': zip_type_requires,
+                'zip_code.state': zip_state_requires,
+                'zip_code.timezone': zip_timezone_requires}
+
     grid = SimpleTable(queries,
                        fields=fields,
                        search_form=search_form,
@@ -76,43 +89,15 @@ def index():
                                            search_type=search_type,
                                            search_filter=search_filter),
                        orderby=orderby,
-                       create=URL('zip_code/0'),
-                       editable=URL('zip_code'),
-                       deletable=URL('zip_code/delete'),
+                       create=True,
+                       editable=True,
+                       deletable=True,
                        search_button='Filter',
                        user_signature=user_signature,
+                       requires=requires,
                        include_action_button_text=True)
 
     return dict(grid=grid)
-
-
-@action('zip_code/<zip_code_id>', method=['GET', 'POST'])
-@action.uses(session, db, auth, 'libs/edit.html')
-def zip_code(zip_code_id):
-    db.zip_code.id.readable = False
-    db.zip_code.id.writable = False
-
-    db.zip_code.zip_type.requires = IS_IN_SET(
-        [x.zip_type for x in db(db.zip_code.id > 0).select(db.zip_code.zip_type, distinct=True)])
-    db.zip_code.state.requires = IS_IN_SET(
-        [x.state for x in db(db.zip_code.id > 0).select(db.zip_code.state, distinct=True)])
-    db.zip_code.timezone.requires = IS_IN_SET(
-        [x.timezone for x in db(db.zip_code.id > 0).select(db.zip_code.timezone, distinct=True)])
-
-    form = Form(db.zip_code, record=zip_code_id, formstyle=FormStyleSimpleTable)
-    if form.accepted:
-        page = request.query.get('page', 1)
-        redirect(URL('index', vars=dict(user_signature=request.query.get('user_signature'),
-                                        page=page)))
-
-    return dict(form=form, id=zip_code_id)
-
-
-@action('zip_code/delete/<zip_code_id>', method=['GET', 'POST'])
-@action.uses(session, db, auth, 'simple_table.html')
-def zip_code_delete(zip_code_id):
-    result = db(db.zip_code.id == zip_code_id).delete()
-    redirect(URL('index', vars=dict(user_signature=request.query.get('user_signature'))))
 
 
 @action('grid', method=['POST', 'GET'])
@@ -153,9 +138,9 @@ def datatables():
                                     DataTablesField(name='county'),
                                     DataTablesField(name='primary_city')],
                             data_url=URL('datatables_data'),
-                            create_url=URL('zip_code_dt/0'),
-                            edit_url=URL('zip_code_dt/record_id'),
-                            delete_url=URL('zip_code_dt/delete/record_id'),
+                            create_url=URL('zip_code/0'),
+                            edit_url=URL('zip_code/record_id'),
+                            delete_url=URL('zip_code/delete/record_id'),
                             sort_sequence=[[1, 'asc']])
     dt.script()
     return dict(dt=dt)
@@ -196,9 +181,9 @@ def datatables_data():
     return json.dumps(dict(data=data, recordsTotal=record_count, recordsFiltered=filtered_count))
 
 
-@action('zip_code_dt/<zip_code_id>', method=['GET', 'POST'])
+@action('zip_code/<zip_code_id>', method=['GET', 'POST'])
 @action.uses(session, db, auth, 'libs/edit.html')
-def zip_code_dt(zip_code_id):
+def zip_code(zip_code_id):
     db.zip_code.id.readable = False
     db.zip_code.id.writable = False
 
@@ -217,9 +202,9 @@ def zip_code_dt(zip_code_id):
     return dict(form=form, id=zip_code_id)
 
 
-@action('zip_code_dt/delete/<zip_code_id>', method=['GET', 'POST'])
+@action('zip_code/delete/<zip_code_id>', method=['GET', 'POST'])
 @action.uses(session, db, auth, 'simple_table.html')
-def zip_code_dt_delete(zip_code_id):
+def zip_code_delete(zip_code_id):
     result = db(db.zip_code.id == zip_code_id).delete()
     redirect(URL('datatables'))
 
