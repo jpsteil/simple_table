@@ -5,7 +5,7 @@ from pydal.validators import IS_NULL_OR, IS_IN_SET
 from py4web import request, URL, response, redirect
 from py4web.utils.form import Form, FormStyleDefault
 from .. import settings
-from .. models import db
+from ..models import db
 import uuid
 import json
 
@@ -59,6 +59,7 @@ class SimpleTable:
                  headings=None,
                  per_page=settings.SIMPLE_TABLE_ROWS_PER_PAGE,
                  create=False,
+                 details=False,
                  editable=False,
                  deletable=False,
                  include_action_button_text=False,
@@ -117,7 +118,8 @@ class SimpleTable:
             self.record_id = request.url_args['record_id']
             self.requires = requires
             self.readonly_fields = [field for field in self.fields if not field.writable]
-            if request.url_args['action'] in ['edit', 'new']:
+            if request.url_args['action'] in ['new', 'details', 'edit']:
+                readonly = True if request.url_args['action'] == 'details' else False
                 for field in self.readonly_fields:
                     db[self.tablename][field.name].writable = False
 
@@ -137,12 +139,12 @@ class SimpleTable:
                             db[self.tablename][field.name].readable = False
                             db[self.tablename][field.name].writable = False
 
-                self.form = Form(db[self.tablename], record=self.record_id,
+                self.form = Form(db[self.tablename], record=self.record_id, readonly=readonly,
                                  formstyle=FormStyleSimpleTable)
                 if self.form.accepted:
                     page = request.query.get('page', 1)
                     redirect(URL(self.endpoint, vars=dict(user_signature=request.query.get('user_signature'),
-                                                page=page)))
+                                                          page=page)))
 
             if request.url_args['action'] == 'delete':
                 db(db[self.tablename].id == self.record_id).delete()
@@ -170,9 +172,10 @@ class SimpleTable:
             self.current_page_number = current_page_number if isinstance(current_page_number, int) \
                 else int(current_page_number)
 
+            self.create = create
+            self.details = details
             self.editable = editable
             self.deletable = deletable
-            self.create = create
 
             self.search_button = search_button
 
@@ -352,7 +355,7 @@ class SimpleTable:
                 if isinstance(self.create, str):
                     create_url = self.create
                 else:
-                    create_url = create_url = URL(self.endpoint) + '/edit/%s/0' % self.tablename
+                    create_url = create_url = URL(self.endpoint) + '/new/%s/0' % self.tablename
                 _a = A('', _href=create_url,
                        _class='button')
                 _span = SPAN(_class='icon is-small')
@@ -363,7 +366,7 @@ class SimpleTable:
 
             #  build the search form if provided
             if self.search_form:
-                _sf = DIV(_class='is-pulled-right')
+                _sf = DIV(_class='is-pulled-right', _style='padding-bottom: 1rem;')
                 _sf.append(self.search_form.custom['begin'])
                 _tr = TR()
                 for field in self.search_form.table:
@@ -373,7 +376,8 @@ class SimpleTable:
                         _td.append(field.label)
                     else:
                         _td.append(self.search_form.custom['widgets'][field.name])
-                    if field.name in self.search_form.custom['errors'] and self.search_form.custom['errors'][field.name]:
+                    if field.name in self.search_form.custom['errors'] and self.search_form.custom['errors'][
+                        field.name]:
                         _td.append(DIV(self.search_form.custom['errors'][field.name], _style="color:#ff0000"))
                     _tr.append(_td)
                 if self.search_button:
@@ -394,7 +398,8 @@ class SimpleTable:
             # build the header
             _thead = THEAD()
             for index, field in enumerate(self.fields):
-                if field.name not in [x.name for x in self.hidden_fields] and (field.name != 'id' or (field.name == 'id' and self.show_id)):
+                if field.name not in [x.name for x in self.hidden_fields] and (
+                        field.name != 'id' or (field.name == 'id' and self.show_id)):
                     try:
                         heading = self.headings[index]
                     except:
@@ -458,11 +463,35 @@ class SimpleTable:
                             else:
                                 _tr.append(TD(XML('&nbsp;')))
                         else:
-                            _tr.append(TD(row[field.name] if row and field and field.name in row and row[field.name] else ''))
+                            _tr.append(
+                                TD(row[field.name] if row and field and field.name in row and row[field.name] else ''))
 
                 _td = None
-                if (self.editable and self.editable != '') or (self.deletable and self.deletable != ''):
+                if (self.details and self.details != '') or \
+                        (self.editable and self.editable != '') or \
+                        (self.deletable and self.deletable != ''):
                     _td = TD(_class='center', _style='text-align: center; white-space: nowrap;')
+                    if self.details and self.details != '':
+                        if isinstance(self.details, str):
+                            details_url = self.details
+                        else:
+                            details_url = URL(self.endpoint) + '/details/%s' % self.tablename
+                        if self.include_action_button_text:
+                            _a = A(_href=details_url + '/%s?user_signature=%s&page=%s' % (row.id,
+                                                                                       self.user_signature,
+                                                                                       self.current_page_number),
+                                   _class='button is-small')
+                            _span = SPAN(_class='icon is-small')
+                            _span.append(I(_class='fas fa-id-card'))
+                            _a.append(_span)
+                            _a.append(SPAN('Details'))
+                        else:
+                            _a = A(I(_class='fas fa-id-card'),
+                                   _href=details_url + '/%s?user_signature=%s&page=%s' % (row.id,
+                                                                                          self.user_signature,
+                                                                                          self.current_page_number),
+                                   _class='button is-small')
+                        _td.append(_a)
                     if self.editable and self.editable != '':
                         if isinstance(self.editable, str):
                             edit_url = self.editable
@@ -537,24 +566,30 @@ class SimpleTable:
 
             if self.deletable:
                 _html.append((XML("""
-                    <script src="https://momentjs.com/downloads/moment.js"></script>
                     <script type="text/javascript">
                     $('.confirmation').on('click', function () {
                         return confirm($(this).attr('message') +' - Are you sure?');
                     });
                     </script>
                 """)))
-        elif self.action in ['edit', 'new']:
+        elif self.action in ['new', 'details', 'edit']:
             _html = DIV(_class='card')
             _card_content = DIV(_class='card-content')
             _media = DIV(_class='media')
             _media_left = DIV(_class='media-left')
             _figure = FIGURE(_class='image is-48x48')
-            _figure.append(I(_class="fas fa-edit fa-3x"))
+            if self.action in ['new', 'edit']:
+                icon = 'fa-edit'
+                if self.action == 'new':
+                    icon = 'fa-plus'
+                ttl = '%s %s' % (self.action, self.tablename.replace('_', ' '))
+            else:
+                icon = 'fa-id-card'
+                ttl = '%s Details' % self.tablename
+            _figure.append(I(_class="fas %s fa-2x" % icon))
             _media_left.append(_figure)
             _media.append(_media_left)
-            _title = P('Edit Record' if self.record_id and int(self.record_id) > 0 else 'New Record',
-                       _class='title is-4')
+            _title = P(ttl.title(), _class='title is-4')
             _media_content = DIV(_class='media-content')
             _media_content.append(_title)
             _media.append(_media_content)

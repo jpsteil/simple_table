@@ -90,6 +90,7 @@ def index(action=None, tablename=None, record_id=None):
                                            search_filter=search_filter),
                        orderby=orderby,
                        create=True,
+                       details=True,
                        editable=True,
                        deletable=True,
                        search_button='Filter',
