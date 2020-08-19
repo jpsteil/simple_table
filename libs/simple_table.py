@@ -24,15 +24,15 @@ def get_signature():
     return request.query.get('user_signature', uuid.uuid4())
 
 
-def get_filter_value(user_signature, filter_name, default_value=None):
-    filter_value = default_value
+def get_storage_value(user_signature, filter_name, default_value=None):
+    storage_value = default_value
     if user_signature and user_signature in request.cookies:
         cookie = json.loads(request.get_cookie(user_signature,
                                                default={},
                                                secret=settings.SESSION_SECRET_KEY))
-        filter_value = cookie.get(filter_name, default_value)
+        storage_value = cookie.get(filter_name, default_value)
 
-    return filter_value
+    return storage_value
 
 
 def set_storage_values(user_signature, values_dict):
@@ -51,7 +51,7 @@ class SimpleTable:
     def __init__(self,
                  queries,
                  search_form=None,
-                 filter_values=None,
+                 storage_values=None,
                  fields=None,
                  show_id=False,
                  orderby=None,
@@ -230,6 +230,73 @@ class SimpleTable:
 
             set_storage_values(user_signature, storage_values)
             self.storage_values = storage_values
+
+    def decode_orderby(self, sort_order):
+        """
+        sort_order can be an int, string, list of strings, pydal fields or list of pydal fields
+
+        need to determine which it is and then return a dict containing the string representation of the
+        orderby and the pydal expression to be used in the query
+
+        :param sort_order:
+        :return: dict(orderby_string=<order by string>, orderby_expression=<pydal orderby expression>)
+        """
+        orderby_expression = None
+        orderby_string = None
+        if sort_order:
+            #  can be an int or a PyDAL field
+            try:
+                index = int(sort_order)
+                #  if we get here, this is a sort request from the table
+                #  if it is in the saved order by then reverse the direction
+                if (request.query.get('sort_dir') and request.query.get('sort_dir') == 'desc') or index < 0:
+                    orderby_expression = [~self.fields[abs(index)]]
+                else:
+                    orderby_expression = [self.fields[index]]
+            except:
+                #  this could be:
+                #  a string
+                #  a list of strings
+                #  a list of dal fields or a single pydal field, treat the same
+                if isinstance(sort_order, str):
+                    #  a string
+                    tablename, fieldname = sort_order.split('.')
+                    orderby_expression = [db[tablename][fieldname]]
+                else:
+                    sort_type = 'dal_field'
+                    for x in sort_order:
+                        if isinstance(x, str):
+                            sort_type = 'str'
+
+                    if sort_type == 'dal_field':
+                        #  a list of dal fields
+                        orderby_expression = sort_order
+                    else:
+                        #  a list of strings
+                        orderby_expression = []
+                        for x in sort_order:
+                            tablename, fieldname = x.replace('~', '').split('.')
+                            if '~' in x:
+                                orderby_expression.append(~db[tablename][fieldname])
+                            else:
+                                orderby_expression.append(db[tablename][fieldname])
+        else:
+            for field in self.fields:
+                if field not in self.hidden_fields and (field.name != 'id' or field.name == 'id' and self.show_id):
+                    orderby_expression = field
+
+        if orderby_expression:
+            try:
+                orderby_string = []
+                for x in orderby_expression:
+                    if ' DESC' in str(x):
+                        orderby_string.append('~' + str(x).replace('"', '').replace(' DESC', ''))
+                    else:
+                        orderby_string.append('%s.%s' % (x.tablename, x.name))
+            except:
+                orderby_string = orderby_expression
+
+        return dict(orderby_string=orderby_string, orderby_expression=orderby_expression)
 
     def iter_pages(self, left_edge=1, right_edge=1, left_current=1, right_current=2):
         """

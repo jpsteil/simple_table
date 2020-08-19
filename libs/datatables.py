@@ -1,20 +1,69 @@
+from yatl.helpers import DIV, TABLE, TR, TD, TH, A, SPAN, I, THEAD, P, TAG, TBODY, SCRIPT
+from py4web import URL
+
+
 class DataTablesResponse:
-    def __init__(self, fields=None, data_function=None, edit_function=None, page_length=15, sort_sequence=None):
+    def __init__(self, fields=None, data_url=None, create_url=None,
+                 edit_url=None, delete_url=None, page_length=15,
+                 sort_sequence=None):
         """
-        A dataholder class so we can simply pass data from controller to web page with some defaults
+        All the data we need to build a datatable
+        Contains helper methods to write out the table
 
         :param fields: list of DataTablesField objects to display on the page
-        :param data_function: the controller function to call to get the data
-        :param edit_function: edit function to call to edit a page - Not in use at this time
+        :param data_url: the url for the call to get the data
+        :param edit_url: edit url to the edit page for the data
         :param page_length: default=15 - number of rows to display by default
         :param sort_sequence: list of a list of columns to sort by
         """
         self.fields = fields
-        self.data_function = data_function
-        self.edit_function = edit_function
+        self.data_url = data_url
+        self.create_url = create_url
+        self.edit_url = edit_url
+        self.delete_url = delete_url
         self.page_length = page_length
         self.sort_sequence = sort_sequence if sort_sequence else []
 
+    def style(self):
+        return """
+<style type="text/css">
+    table.dataTable thead th.datatables-header {
+        border-top: 1px solid #dbdbdb;
+        border-right: 1px solid #dbdbdb;
+        border-bottom: 1px solid #dbdbdb;
+        color: #3273dc;
+        height: 2em;
+        vertical-align: middle;
+    }
+    table.dataTable tr td {
+        vertical-align: middle;
+    }
+    table.dataTable thead th.datatables-header:first-child {
+        border-left: 1px solid #dbdbdb;
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button {
+        background-color: white;
+        border-radius: 2px;
+        border-color: #dbdbdb;
+        border-width: 1px;
+        color: #363636;
+        font-size: 0.75rem;
+        height: 2.25em;
+        justify-content: center;
+        padding-bottom: calc(0.375em - 1px);
+        padding-left: 0.75em;
+        padding-right: 0.75em;
+        padding-top: calc(0.375em - 1px);
+        text-align: center;
+        white-space: nowrap;
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+        background: none !important;
+        background-color: #00d1b2 !important;
+        color: #fff !important;
+    }
+</style>
+"""
 
     def script(self):
         js = ('<script type="text/javascript">'

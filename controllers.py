@@ -3,11 +3,16 @@ import pprint
 from functools import reduce
 
 from py4web import action, request, redirect, URL, Field
-from py4web.utils.form import Form, FormStyleBulma
+from py4web.utils.form import Form, FormStyleBulma, FormStyleDefault
 from py4web.utils.grid import Grid
+from pydal.validators import IS_NULL_OR, IS_IN_SET
 from .common import db, session, auth, unauthenticated
 from .libs.datatables import DataTablesField, DataTablesRequest, DataTablesResponse
-from .libs.simple_table import SimpleTable, get_signature, get_filter_value
+from .libs.simple_table import SimpleTable, get_signature, get_storage_value
+from py4web.utils.publisher import Publisher, ALLOW_ALL_POLICY  # for ajax_grid
+
+#  exposes services necessary to access the db.thing via ajax
+publisher = Publisher(db, policy=ALLOW_ALL_POLICY)
 
 
 @action('index', method=['POST', 'GET'])
@@ -24,13 +29,30 @@ def index(action=None, tablename=None, record_id=None):
 
     #  check session to see if we've saved a default value
     user_signature = get_signature()
-    search_filter = get_filter_value(user_signature, 'search_filter', None)
+    search_state = get_storage_value(user_signature, 'search_state', None)
+    search_type = get_storage_value(user_signature, 'search_type', None)
+    search_filter = get_storage_value(user_signature, 'search_filter', None)
 
     #  build the search form
-    search_form = Form([Field('search', length=50, default=search_filter)],
-                       keep_values=True, formstyle=FormStyleBulma)
+    zip_type_requires = IS_NULL_OR(IS_IN_SET([x.zip_type for x in db(db.zip_code.id > 0).select(db.zip_code.zip_type,
+                                                                                                orderby=db.zip_code.zip_type,
+                                                                                                distinct=True)]))
+    zip_state_requires = IS_NULL_OR(IS_IN_SET([x.state for x in db(db.zip_code.id > 0).select(db.zip_code.state,
+                                                                                              orderby=db.zip_code.state,
+                                                                                              distinct=True)]))
+    search_form = Form([Field('state', length=20, requires=zip_state_requires,
+                              default=search_state,
+                              _title='Filter by State'),
+                        Field('zip_type', length=20, requires=zip_type_requires,
+                              default=search_type,
+                              _title='Select Filter by ZIP Type'),
+                        Field('search', length=50, default=search_filter, _placeholder='...search text...',
+                              _title='Enter search text and click on Filter')],
+                       keep_values=True, formstyle=FormStyleSimpleTable, )
 
     if search_form.accepted:
+        search_state = search_form.vars['state']
+        search_type = search_form.vars['zip_type']
         search_filter = search_form.vars['search']
 
     queries = [(db.zip_code.id > 0)]
@@ -40,6 +62,8 @@ def index(action=None, tablename=None, record_id=None):
                        (db.zip_code.primary_city.contains(search_filter)) |
                        (db.zip_code.county.contains(search_filter)) |
                        (db.zip_code.state.contains(search_filter)))
+    if search_state:
+        queries.append(db.zip_code.state == search_state)
 
     if search_type:
         queries.append(db.zip_code.zip_type == search_type)
@@ -61,7 +85,9 @@ def index(action=None, tablename=None, record_id=None):
     grid = SimpleTable(queries,
                        fields=fields,
                        search_form=search_form,
-                       filter_values=dict(search_filter=search_filter),
+                       storage_values=dict(search_state=search_state,
+                                           search_type=search_type,
+                                           search_filter=search_filter),
                        orderby=orderby,
                        create=True,
                        details=True,
@@ -122,9 +148,9 @@ def datatables():
 
 
 @unauthenticated
-@action('_datatables_data', method=['GET', 'POST'])
+@action('datatables_data', method=['GET', 'POST'])
 @action.uses(session, db, auth)
-def _datatables_data():
+def datatables_data():
     """
     datatables.net makes an ajax call to this method to get the data
 

@@ -7,5 +7,4 @@
 /dist/*
 /qlf.egg-info/*
 .deposit
-databases/
 
