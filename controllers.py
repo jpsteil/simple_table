@@ -11,11 +11,10 @@ from .libs.simple_table import SimpleTable, get_signature, get_filter_value
 
 
 @action('index', method=['POST', 'GET'])
+@action('index/<action>/<tablename>/<record_id>', method=['POST', 'GET'])
 @action('/', method=['POST', 'GET'])
 @action.uses(session, db, auth, 'libs/simple_table.html')
-def index():
-    url_path = 'index'
-
+def index(action=None, tablename=None, record_id=None):
     fields = [db.zip_code.id,
               db.zip_code.zip_code,
               db.zip_code.zip_type,
@@ -42,37 +41,39 @@ def index():
                        (db.zip_code.county.contains(search_filter)) |
                        (db.zip_code.state.contains(search_filter)))
 
-    orderby = [db.zip_code.state, db.zip_code.county, db.zip_code.primary_city]
-    grid = SimpleTable(url_path,
-                       queries,
+    if search_type:
+        queries.append(db.zip_code.zip_type == search_type)
+
+    orderby = [~db.zip_code.state, db.zip_code.county, db.zip_code.primary_city]
+
+    zip_type_requires = IS_IN_SET([x.zip_type for x in db(db.zip_code.id > 0).select(db.zip_code.zip_type,
+                                                                                     orderby=db.zip_code.zip_type,
+                                                                                     distinct=True)])
+    zip_state_requires = IS_IN_SET([x.state for x in db(db.zip_code.id > 0).select(db.zip_code.state,
+                                                                                   orderby=db.zip_code.state,
+                                                                                   distinct=True)])
+    zip_timezone_requires = IS_IN_SET([x.timezone for x in db(db.zip_code.id > 0).select(db.zip_code.timezone,
+                                                                                         distinct=True)])
+    requires = {'zip_code.zip_type': zip_type_requires,
+                'zip_code.state': zip_state_requires,
+                'zip_code.timezone': zip_timezone_requires}
+
+    grid = SimpleTable(queries,
                        fields=fields,
                        search_form=search_form,
                        filter_values=dict(search_filter=search_filter),
                        orderby=orderby,
-                       create_url=URL('zip_code/0', vars=dict(user_signature=user_signature)),
-                       edit_url=URL('zip_code'),
-                       delete_url=URL('zip_code/delete'),
-                       user_signature=user_signature)
+                       create=True,
+                       details=True,
+                       editable=True,
+                       deletable=True,
+                       search_button='Filter',
+                       user_signature=user_signature,
+                       requires=requires,
+                       include_action_button_text=True)
 
     return dict(grid=grid)
 
-
-@action('zip_code/<zip_code_id>', method=['GET', 'POST'])
-@action.uses(session, db, auth, 'libs/edit.html')
-def zip_code(zip_code_id):
-    form = Form(db.zip_code, record=zip_code_id, formstyle=FormStyleBulma)
-
-    if form.accepted:
-        redirect(URL('index', vars=dict(user_signature=request.query.get('user_signature'))))
-
-    return dict(form=form)
-
-#DELETE
-@action('zip_code/delete/<zip_code_id>', method=['GET', 'POST'])
-@action.uses(session, db, auth, 'simple_table.html')
-def zip_code(zip_code_id):
-    result = db(db.zip_code.id == zip_code_id).delete()
-    redirect(URL('index', vars=dict(user_signature=request.query.get('user_signature'))))
 
 @action('grid', method=['POST', 'GET'])
 @action.uses(session, db, auth, 'index.html')
@@ -105,14 +106,19 @@ def datatables():
 
     :return:
     """
-    return dict(dt=DataTablesResponse(fields=[DataTablesField(name='DT_RowId', visible=False),
-                                              DataTablesField(name='zip_code'),
-                                              DataTablesField(name='zip_type'),
-                                              DataTablesField(name='state'),
-                                              DataTablesField(name='county'),
-                                              DataTablesField(name='primary_city')],
-                                      data_function='_datatables_data',
-                                      sort_sequence=[[1, 'asc']]))
+    dt = DataTablesResponse(fields=[DataTablesField(name='DT_RowId', visible=False),
+                                    DataTablesField(name='zip_code'),
+                                    DataTablesField(name='zip_type'),
+                                    DataTablesField(name='state'),
+                                    DataTablesField(name='county'),
+                                    DataTablesField(name='primary_city')],
+                            data_url=URL('datatables_data'),
+                            create_url=URL('zip_code/0'),
+                            edit_url=URL('zip_code/record_id'),
+                            delete_url=URL('zip_code/delete/record_id'),
+                            sort_sequence=[[1, 'asc']])
+    dt.script()
+    return dict(dt=dt)
 
 
 @unauthenticated
@@ -148,3 +154,62 @@ def _datatables_data():
                                                                         limitby=[dtr.start, dtr.start + dtr.length])]
 
     return json.dumps(dict(data=data, recordsTotal=record_count, recordsFiltered=filtered_count))
+
+
+@action('zip_code/<zip_code_id>', method=['GET', 'POST'])
+@action.uses(session, db, auth, 'libs/edit.html')
+def zip_code(zip_code_id):
+    db.zip_code.id.readable = False
+    db.zip_code.id.writable = False
+
+    db.zip_code.zip_type.requires = IS_IN_SET(
+        [x.zip_type for x in db(db.zip_code.id > 0).select(db.zip_code.zip_type, distinct=True)])
+    db.zip_code.state.requires = IS_IN_SET(
+        [x.state for x in db(db.zip_code.id > 0).select(db.zip_code.state, distinct=True)])
+    db.zip_code.timezone.requires = IS_IN_SET(
+        [x.timezone for x in db(db.zip_code.id > 0).select(db.zip_code.timezone, distinct=True)])
+
+    form = Form(db.zip_code, record=zip_code_id, formstyle=FormStyleSimpleTable)
+
+    if form.accepted:
+        redirect(URL('datatables'))
+
+    return dict(form=form, id=zip_code_id)
+
+
+@action('zip_code/delete/<zip_code_id>', method=['GET', 'POST'])
+@action.uses(session, db, auth, 'simple_table.html')
+def zip_code_delete(zip_code_id):
+    result = db(db.zip_code.id == zip_code_id).delete()
+    redirect(URL('datatables'))
+
+
+# exposed as /examples/ajaxgrid
+@action("ajax_grid")
+@action.uses("ajax_grid.html")
+def ajax_grid():
+    return dict(grid=publisher.grid(db.zip_code))
+
+
+def FormStyleSimpleTable(table, vars, errors, readonly, deletable):
+    classes = {
+        "outer": "field",
+        "inner": "control",
+        "label": "label is-uppercase",
+        "info": "help",
+        "error": "help is-danger py4web-validation-error",
+        "submit": "button is-success",
+        "input": "input",
+        "input[type=text]": "input",
+        "input[type=date]": "input",
+        "input[type=time]": "input",
+        "input[type=datetime-local]": "input",
+        "input[type=radio]": "radio",
+        "input[type=checkbox]": "checkbox",
+        "input[type=submit]": "button",
+        "input[type=password]": "password",
+        "input[type=file]": "file",
+        "select": "control select",
+        "textarea": "textarea",
+    }
+    return FormStyleDefault(table, vars, errors, readonly, deletable, classes)

@@ -16,6 +16,92 @@ class DataTablesResponse:
         self.sort_sequence = sort_sequence if sort_sequence else []
 
 
+    def script(self):
+        js = ('<script type="text/javascript">'
+              '    $(document).ready(function() {'
+              '        $(\'#datatables_table\').DataTable( {'
+              '            dom: "lfrtip", '
+              '            processing: true, '
+              '            serverSide: true, '
+              '            lengthMenu: [  [10, 15, 20, -1], [10, 15, 20, \'All\']  ], '
+              '            pageLength: %s, '
+              '            pagingType: "numbers", '
+              '            ajax: "%s", '
+              '            columns: [' % (self.page_length, self.data_url))
+        #  add the field values
+        for field in self.fields:
+            js += ('{'
+                   '    "data": "%s", '
+                   '    "name": "%s", '
+                   '    "visible": %s, '
+                   '},' % (field.name, field.name, 'true' if field.visible else 'false'))
+        #  add the row buttons
+        js += ('{'
+               '    data: null,'
+               '    render: function ( data, type, row ) {'
+               '      var edit_url=\'%s\'; '
+               '      edit_url = edit_url.replace("record_id", row.DT_RowId); '
+               '      var delete_url=\'%s\'; '
+               '      delete_url = delete_url.replace("record_id", row.DT_RowId); '
+               '      return edit_url + "&nbsp;" + delete_url '
+               '    }, '
+               '    orderable: false, '
+               '}' % (A(I(_class='fas fa-edit'),
+                        _href=self.edit_url if self.edit_url else '#',
+                        _class='button is-small'),
+                      A(I(_class='fas fa-trash'),
+                        _href=self.delete_url if self.delete_url else '#',
+                        _class='button is-small',
+                        _message='Delete Record')))
+        js += '], columnDefs: ['
+        for index, field in enumerate(self.fields):
+            if not field.visible:
+                js += '{"visible": false, "targets": %s},' % index
+        js += '{className: "has-text-centered", "targets": %s}' % (index + 1)
+
+        js += ('],'
+               'order: ')
+        for sort in self.sort_sequence:
+            js += '[ %s, "%s" ]' % (sort[0], sort[1])
+
+        js += (','
+               '        stateSave: true, '
+               '        select: true, '
+               '    });'
+               '    $(".dataTables_filter input").focus().select();'
+               '});'
+               '</script>')
+
+        return str(js)
+
+    def table(self):
+        _html = DIV()
+        if self.create_url and self.create_url != '':
+            _a = A('', _href=self.create_url,
+                   _class='button', _style='margin-bottom: 1rem;')
+            _span = SPAN(_class='icon is-small')
+            _span.append(I(_class='fas fa-plus'))
+            _a.append(_span)
+            _a.append(SPAN('New'))
+            _html.append(_a)
+
+        _table = TABLE(_id='datatables_table',
+                       _class='compact stripe hover cell-border order-column',
+                       _style='padding-top: 1rem;')
+        _thead = THEAD()
+        _tr = TR()
+        for field in self.fields:
+            _tr.append(TH(field.label, _class='datatables-header'))
+        _tr.append(TH('ACTIONS', _class='datatables-header has-text-centered',
+                      _style='color: black; width: 1px; white-space: nowrap;'))
+        _thead.append(_tr)
+        _table.append(_thead)
+        _table.append(TBODY())
+
+        _html.append(_table)
+        return str(_html)
+
+
 class DataTablesRequest:
     def __init__(self, get_vars):
         """

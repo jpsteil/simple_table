@@ -1,15 +1,17 @@
 from functools import reduce
 
-from yatl.helpers import DIV, TABLE, TR, TD, TH, A, SPAN, I, THEAD, P, TAG
-
-from py4web import request, URL, response
+from yatl.helpers import DIV, TABLE, TR, TD, TH, A, SPAN, I, THEAD, P, TAG, INPUT, SCRIPT, XML
+from pydal.validators import IS_NULL_OR, IS_IN_SET
+from py4web import request, URL, response, redirect
+from py4web.utils.form import Form, FormStyleDefault
 from .. import settings
-from .. models import db
+from ..models import db
 import uuid
 import json
 
 NAV = TAG.nav
 HEADER = TAG.header
+FIGURE = TAG.figure
 
 
 def get_signature():
@@ -33,62 +35,62 @@ def get_filter_value(user_signature, filter_name, default_value=None):
     return filter_value
 
 
-def set_filter_values(user_signature, values_dict):
+def set_storage_values(user_signature, values_dict):
+    #  default the timeout to 1 hour - override by setting SIMPLE_TABLE_SIGNATURE_MAX_AGE in settings
+    try:
+        max_age = settings.SIMPLE_TABLE_SIGNATURE_MAX_AGE
+    except:
+        max_age = 3600
     response.set_cookie(str(user_signature),
                         json.dumps(values_dict),
                         secret=settings.SESSION_SECRET_KEY,
-                        max_age=settings.SIMPLE_TABLE_SIGNATURE_MAX_AGE)
+                        max_age=max_age)
 
 
 class SimpleTable:
     def __init__(self,
-                 endpoint,
                  queries,
                  search_form=None,
                  filter_values=None,
                  fields=None,
-                 hidden_fields=None,
                  show_id=False,
                  orderby=None,
                  left=None,
                  headings=None,
                  per_page=settings.SIMPLE_TABLE_ROWS_PER_PAGE,
-                 create_url='',
-                 edit_url='',
-                 delete_url='',
+                 create=False,
+                 details=False,
+                 editable=False,
+                 deletable=False,
                  include_action_button_text=False,
+                 search_button=None,
+                 requires=None,
                  user_signature=None):
         """
         SimpleTable is a searchable/sortable/pageable grid
 
-        :param endpoint: the url of the page. used to build URLs for sorting/searching paging
         :param queries: list of queries used to filter the data
         :param search_form: py4web FORM to be included as the search form
-        :param filter_values: current value of all filter field(s)
-        :param fields: list of fields to display on the list page
-        :param hidden_fields: fields included on the field list that should be hidden on the list page
-        :param show_id: True/False - show the record id field on list page - default = False
+        :param storage_values: values to save between requests
+        :param fields: list of fields to display on the list page, if blank, glean tablename from first query
+        :              and use all fields of that table
+        :param show_id: show the record id field on list page - default = False
         :param orderby: pydal orderby field or list of fields
         :param left: if joining other tables, specify the pydal left expression here
         :param headings: list of headings to be used for list page - if not provided use the field label
         :param per_page: # of rows to display per page - gets default from app settings
-        :param create_url: URL to redirect to for creating records
-        :param edit_url: URL to redirect to for editing records
-        :param delete_url: URL to redirect to for deleting records
+        :param create: URL to redirect to for creating records - set to False to not display the button
+        :param editable: URL to redirect to for editing records - set to False to not display the button
+        :param deletable: URL to redirect to for deleting records - set to False to not display the button
         :param include_action_button_text: include text on action buttons - default = False
+        :param search_button: text to appear on the search/filter button
+        :param requires: dict of fields and their 'requires' parm for building edit pages - dict key should be
+                         tablename.fieldname
         :param user_signature: id of the cookie containing saved values
         """
-        self.query_parms = dict()
-        if request.query_string and isinstance(request.query_string, str):
-            #  split the key/value pairs
-            kvp = request.query_string.split('&')
-            for query_parm in kvp:
-                #  split the parm into key and value
-                key, value = query_parm.split('=')
-                self.query_parms[key] = value
+        self.query_parms = request.params
+        self.endpoint = request.route.call.__name__
 
-        #  get instance arguments
-        self.endpoint = endpoint
         self.search_form = search_form
 
         self.query = reduce(lambda a, b: (a & b), queries)
@@ -99,89 +101,135 @@ class SimpleTable:
                 self.fields = fields
             else:
                 self.fields = [fields]
+        else:
+            q = self.query
+            while q.second != 0:
+                q = q.first
 
-        self.hidden_fields = []
-        if hidden_fields:
-            if isinstance(hidden_fields, list):
-                self.hidden_fields = hidden_fields
-            else:
-                self.hidden_fields = [hidden_fields]
+            self.fields = [db[q.first.table][x] for x in q.first.table.fields()]
 
         self.show_id = show_id
-        self.orderby = orderby
+        self.hidden_fields = [field for field in self.fields if not field.readable]
         self.left = left
 
-        self.headings = []
-        if headings:
-            if isinstance(headings, list):
-                self.headings = headings
-            else:
-                self.headings = [headings]
+        if 'action' in request.url_args:
+            self.action = request.url_args['action']
+            self.tablename = request.url_args['tablename']
+            self.record_id = request.url_args['record_id']
+            self.requires = requires
+            self.readonly_fields = [field for field in self.fields if not field.writable]
+            if request.url_args['action'] in ['new', 'details', 'edit']:
+                readonly = True if request.url_args['action'] == 'details' else False
+                for field in self.readonly_fields:
+                    db[self.tablename][field.name].writable = False
 
-        self.per_page = per_page
-        sig_page_number = json.loads(request.query.get(user_signature, '{}')).get('page', 1)
-        current_page_number = request.query.get('page', sig_page_number)
-        self.current_page_number = current_page_number if isinstance(current_page_number, int) \
-            else int(current_page_number)
+                for field in self.hidden_fields:
+                    db[self.tablename][field.name].readable = False
+                    db[self.tablename][field.name].writable = False
 
-        self.edit_url = edit_url
-        self.delete_url = delete_url
-        self.create_url = create_url
+                if requires:
+                    for field in self.requires:
+                        tablename, fieldname = field.split('.')
+                        db[tablename][fieldname].requires = self.requires[field]
 
-        parms = dict()
-        sort_order = request.query.get('sort', self.orderby)
-        if sort_order:
-            #  can be an int or a PyDAL field
-            try:
-                index = int(sort_order)
-                if request.query.get('sort_dir') and request.query.get('sort_dir') == 'desc':
-                    parms['orderby'] = ~self.fields[index]
-                else:
-                    parms['orderby'] = self.fields[index]
-            except:
-                #  if not an int, then assume PyDAL field
-                parms['orderby'] = sort_order
+                if not self.show_id:
+                    #  if not show id, find the 'id' field and set readable/writable to False
+                    for field in db[self.tablename]:
+                        if field.type == 'id':
+                            db[self.tablename][field.name].readable = False
+                            db[self.tablename][field.name].writable = False
+
+                self.form = Form(db[self.tablename], record=self.record_id, readonly=readonly,
+                                 formstyle=FormStyleSimpleTable)
+                if self.form.accepted:
+                    page = request.query.get('page', 1)
+                    redirect(URL(self.endpoint, vars=dict(user_signature=request.query.get('user_signature'),
+                                                          page=page)))
+
+            if request.url_args['action'] == 'delete':
+                db(db[self.tablename].id == self.record_id).delete()
+                redirect(URL(self.endpoint, vars=dict(user_signature=request.query.get('user_signature'))))
+
         else:
+            self.action = 'select'
+            self.orderby = orderby
+
+            self.tablename = None
             for field in self.fields:
-                if field not in self.hidden_fields and (field.name != 'id' or field.name == 'id' and self.show_id):
-                    parms['orderby'] = field
+                self.tablename = field.table
+                break
 
-        if self.left:
-            parms['left'] = self.left
+            self.headings = []
+            if headings:
+                if isinstance(headings, list):
+                    self.headings = headings
+                else:
+                    self.headings = [headings]
 
-        if self.fields:
+            self.per_page = per_page
+            sig_page_number = json.loads(request.query.get(user_signature, '{}')).get('page', 1)
+            current_page_number = request.query.get('page', sig_page_number)
+            self.current_page_number = current_page_number if isinstance(current_page_number, int) \
+                else int(current_page_number)
+
+            self.create = create
+            self.details = details
+            self.editable = editable
+            self.deletable = deletable
+
+            self.search_button = search_button
+
+            parms = dict()
+            #  try getting sort order from the request
+            sort_order = request.query.get('sort')
+            if not sort_order:
+                #  see if there is a stored orderby
+                sort_order = get_storage_value(user_signature, 'orderby')
+                if not sort_order:
+                    #  use sort order passed in
+                    sort_order = self.orderby
+
+            orderby = self.decode_orderby(sort_order)
+            parms['orderby'] = orderby['orderby_expression']
+            storage_values['orderby'] = orderby['orderby_string']
+            if orderby['orderby_string'] != get_storage_value(user_signature, 'orderby'):
+                #  user clicked on a header to change sort order - reset page to 1
+                self.current_page_number = 1
+
+            if self.left:
+                parms['left'] = self.left
+
             self.total_number_of_rows = db(self.query).count()
-        else:
-            self.total_number_of_rows = db(self.query).count()
 
-        #  if at a high page number and then filter causes less records to be displayed, reset to page 1
-        if (self.current_page_number - 1) * per_page > self.total_number_of_rows:
-            self.current_page_number = 1
+            #  if at a high page number and then filter causes less records to be displayed, reset to page 1
+            if (self.current_page_number - 1) * per_page > self.total_number_of_rows:
+                self.current_page_number = 1
 
-        if self.total_number_of_rows > self.per_page:
-            self.page_start = self.per_page * (self.current_page_number - 1)
-            self.page_end = self.page_start + self.per_page
-            parms['limitby'] = (self.page_start, self.page_end)
-        else:
-            self.page_start = 0
-            if self.total_number_of_rows > 1:
-                self.page_start = 1
-            self.page_end = self.total_number_of_rows
+            if self.total_number_of_rows > self.per_page:
+                self.page_start = self.per_page * (self.current_page_number - 1)
+                self.page_end = self.page_start + self.per_page
+                parms['limitby'] = (self.page_start, self.page_end)
+            else:
+                self.page_start = 0
+                if self.total_number_of_rows > 1:
+                    self.page_start = 1
+                self.page_end = self.total_number_of_rows
 
-        if self.fields:
-            self.rows = db(self.query).select(*fields, **parms)
-        else:
-            self.rows = db(self.query).select(**parms)
+            if self.fields:
+                self.rows = db(self.query).select(*self.fields, **parms)
+            else:
+                self.rows = db(self.query).select(**parms)
 
-        self.number_of_pages = self.total_number_of_rows // self.per_page
-        if self.total_number_of_rows % self.per_page > 0:
-            self.number_of_pages += 1
+            self.number_of_pages = self.total_number_of_rows // self.per_page
+            if self.total_number_of_rows % self.per_page > 0:
+                self.number_of_pages += 1
 
-        self.include_action_button_text = include_action_button_text
-        self.user_signature = user_signature
-        filter_values['page'] = self.current_page_number
+            self.include_action_button_text = include_action_button_text
+            self.user_signature = user_signature
+            storage_values['page'] = self.current_page_number
 
-        set_filter_values(user_signature, filter_values)
+            set_storage_values(user_signature, storage_values)
+            self.storage_values = storage_values
 
     def iter_pages(self, left_edge=1, right_edge=1, left_current=1, right_current=2):
         """
@@ -232,146 +280,281 @@ class SimpleTable:
 
         :return: html representation of the table
         """
-        _html = DIV(_class='field')
-        _top_div = DIV(_style='padding-bottom: 1rem;')
-        if self.create_url and self.create_url != '':
-            _a = A('', _href=self.create_url,
-                   _class='button')
-            _span = SPAN(_class='icon is-small')
-            _span.append(I(_class='fas fa-plus'))
-            _a.append(_span)
-            _a.append(SPAN('New'))
-            _top_div.append(_a)
-
-        #  build the search form if provided
-        if self.search_form:
-            _sf = DIV(_class='is-pulled-right')
-            _sf.append(self.search_form.custom['begin'])
-            _tr = TR()
-            for field in self.search_form.table:
-                _fs = SPAN(_style='padding-right: .5rem;')
-                _td = TD(_style='padding-right: .5rem;')
-                if field.type == 'boolean':
-                    _fs.append(self.search_form.custom['widgets'][field.name])
-                    _fs.append(field.label)
-                    _td.append(self.search_form.custom['widgets'][field.name])
-                    _td.append(field.label)
+        if self.action == 'select':
+            _html = DIV(_class='field')
+            _top_div = DIV(_style='padding-bottom: 1rem;')
+            if self.create and self.create != '':
+                #  build the New button
+                if isinstance(self.create, str):
+                    create_url = self.create
                 else:
-                    _fs.append(self.search_form.custom['widgets'][field.name])
-                    _td.append(self.search_form.custom['widgets'][field.name])
-                if field.name in self.search_form.custom['errors'] and self.search_form.custom['errors'][field.name]:
-                    _fs.append(SPAN(self.search_form.custom['errors'][field.name], _style="color:#ff0000"))
-                    _td.append(DIV(self.search_form.custom['errors'][field.name], _style="color:#ff0000"))
-                _tr.append(_td)
-            _tr.append(TD(self.search_form.custom['submit']))
-            _sf.append(TABLE(_tr))
-            for hidden_widget in self.search_form.custom['hidden_widgets'].keys():
-                _sf.append(self.search_form.custom['hidden_widgets'][hidden_widget])
+                    create_url = create_url = URL(self.endpoint) + '/new/%s/0' % self.tablename
+                _a = A('', _href=create_url,
+                       _class='button')
+                _span = SPAN(_class='icon is-small')
+                _span.append(I(_class='fas fa-plus'))
+                _a.append(_span)
+                _a.append(SPAN('New'))
+                _top_div.append(_a)
 
-            _sf.append(self.search_form.custom['end'])
-            _top_div.append(_sf)
-
-        _html.append(_top_div)
-
-        _table = TABLE(_class='table is-bordered is-striped is-hoverable is-fullwidth')
-
-        # build the header
-        _thead = THEAD()
-        for index, field in enumerate(self.fields):
-            if field not in self.hidden_fields and (field.name != 'id' or field.name == 'id' and self.show_id):
-                try:
-                    heading = self.headings[index]
-                except:
-                    heading = field.label
-                #  add the sort order query parm
-                sort_query_parms = dict(self.query_parms)
-                sort_query_parms['sort'] = index
-                current_sort_dir = 'asc'
-
-                _h = A(heading.replace('_', ' ').upper(),
-                       _href=URL(self.endpoint, vars=sort_query_parms))
-                if 'sort_dir' in sort_query_parms:
-                    current_sort_dir = sort_query_parms['sort_dir']
-                    del sort_query_parms['sort_dir']
-                if index == int(request.query.get('sort', 0)) and current_sort_dir == 'asc':
-                    sort_query_parms['sort_dir'] = 'desc'
-
-                _th = TH()
-                _th.append(_h)
-
-                _thead.append(_th)
-
-        if self.edit_url or self.delete_url:
-            _thead.append(TH('ACTIONS', _style='text-align: center;'))
-
-        _table.append(_thead)
-
-        #  build the rows
-        for row in self.rows:
-            _tr = TR()
-            for field in self.fields:
-                if field not in self.hidden_fields and (field.name != 'id' or field.name == 'id' and self.show_id):
-                    _tr.append(TD(row[field.name] if row and field and field.name in row and row[field.name] else ''))
-
-            _td = None
-            if (self.edit_url and self.edit_url != '') or (self.delete_url and self.delete_url != ''):
-                _td = TD(_class='center', _style='text-align: center;')
-                if self.edit_url and self.edit_url != '':
-                    if self.include_action_button_text:
-                        _a = A(_href=self.edit_url + '/%s?user_signature=%s' % (row.id, self.user_signature),
-                               _class='button is-small')
-                        _span = SPAN(_class='icon is-small')
-                        _span.append(I(_class='fas fa-edit'))
-                        _a.append(_span)
-                        _a.append(SPAN('Edit'))
+            #  build the search form if provided
+            if self.search_form:
+                _sf = DIV(_class='is-pulled-right', _style='padding-bottom: 1rem;')
+                _sf.append(self.search_form.custom['begin'])
+                _tr = TR()
+                for field in self.search_form.table:
+                    _td = TD(_style='padding-right: .5rem;')
+                    if field.type == 'boolean':
+                        _td.append(self.search_form.custom['widgets'][field.name])
+                        _td.append(field.label)
                     else:
-                        _a = A(I(_class='fas fa-edit'),
-                               _href=self.edit_url + '/%s?user_signature=%s' % (row.id, self.user_signature),
-                               _class='button is-small')
-                    _td.append(_a)
-                if self.delete_url and self.delete_url != '':
-                    if self.include_action_button_text:
-                        _a = A(_href=self.delete_url + '/%s?user_signature=%s' % (row.id, self.user_signature),
-                               _class='confirmation button is-small')
-                        _span = SPAN(_class='icon is-small action-button-image')
-                        _span.append(I(_class='fas fa-trash'))
-                        _a.append(_span)
-                        _a.append(SPAN('Delete'))
-                    else:
-                        _a = A(I(_class='fas fa-trash'),
-                               _href=self.delete_url + '/%s?user_signature=%s' % (row.id, self.user_signature),
-                               _class='confirmation button is-small', _message='Delete record ' +str(row.id) )
-                    _td.append(_a)
-                _tr.append(_td)
-            _table.append(_tr)
-
-        _html.append(_table)
-
-        _row_count = DIV(_class='is-pulled-left')
-        _row_count.append(
-            P('Displaying rows %s thru %s of %s' % (self.page_start + 1 if self.number_of_pages > 1 else 1,
-                                                    self.page_end if self.page_end < self.total_number_of_rows else
-                                                    self.total_number_of_rows,
-                                                    self.total_number_of_rows)))
-        _html.append(_row_count)
-
-        #  build the pager
-        _pager = DIV(_class='is-pulled-right')
-        for page_number in self.iter_pages():
-            if page_number:
-                pager_query_parms = dict(self.query_parms)
-                pager_query_parms['page'] = page_number
-                pager_query_parms['user_signature'] = self.user_signature
-                if self.current_page_number == page_number:
-                    _pager.append(A(page_number, _class='button is-primary is-small',
-                                    _href=URL(self.endpoint, vars=pager_query_parms)))
+                        _td.append(self.search_form.custom['widgets'][field.name])
+                    if field.name in self.search_form.custom['errors'] and self.search_form.custom['errors'][
+                        field.name]:
+                        _td.append(DIV(self.search_form.custom['errors'][field.name], _style="color:#ff0000"))
+                    _tr.append(_td)
+                if self.search_button:
+                    _tr.append(TD(INPUT(_class='button', _type='submit', _value=self.search_button)))
                 else:
-                    _pager.append(A(page_number, _class='button is-small',
-                                    _href=URL(self.endpoint, vars=pager_query_parms)))
+                    _tr.append(TD(self.search_form.custom['submit']))
+                _sf.append(TABLE(_tr))
+                for hidden_widget in self.search_form.custom['hidden_widgets'].keys():
+                    _sf.append(self.search_form.custom['hidden_widgets'][hidden_widget])
+
+                _sf.append(self.search_form.custom['end'])
+                _top_div.append(_sf)
+
+            _html.append(_top_div)
+
+            _table = TABLE(_class='table is-bordered is-striped is-hoverable is-fullwidth')
+
+            # build the header
+            _thead = THEAD()
+            for index, field in enumerate(self.fields):
+                if field.name not in [x.name for x in self.hidden_fields] and (
+                        field.name != 'id' or (field.name == 'id' and self.show_id)):
+                    try:
+                        heading = self.headings[index]
+                    except:
+                        heading = field.label
+                    #  add the sort order query parm
+                    sort_query_parms = dict(self.query_parms)
+                    sort_query_parms['sort'] = index
+                    current_sort_dir = 'asc'
+
+                    if '%s.%s' % (field.tablename, field.name) in self.storage_values['orderby']:
+                        sort_query_parms['sort'] = -index
+                        _h = A(heading.replace('_', ' ').upper(),
+                               _href=URL(self.endpoint, vars=sort_query_parms))
+                        _h.append(SPAN(I(_class='fas fa-sort-up'), _class='is-pulled-right'))
+                    elif '~%s.%s' % (field.tablename, field.name) in self.storage_values['orderby']:
+                        _h = A(heading.replace('_', ' ').upper(),
+                               _href=URL(self.endpoint, vars=sort_query_parms))
+                        _h.append(SPAN(I(_class='fas fa-sort-down'), _class='is-pulled-right'))
+                    else:
+                        _h = A(heading.replace('_', ' ').upper(),
+                               _href=URL(self.endpoint, vars=sort_query_parms))
+
+                    if 'sort_dir' in sort_query_parms:
+                        current_sort_dir = sort_query_parms['sort_dir']
+                        del sort_query_parms['sort_dir']
+                    if index == int(request.query.get('sort', 0)) and current_sort_dir == 'asc':
+                        sort_query_parms['sort_dir'] = 'desc'
+
+                    _th = TH()
+                    _th.append(_h)
+
+                    _thead.append(_th)
+
+            if self.editable or self.deletable:
+                _thead.append(TH('ACTIONS', _style='text-align: center; width: 1px; white-space: nowrap;'))
+
+            _table.append(_thead)
+
+            #  build the rows
+            _html.append(XML('<script src="https://momentjs.com/downloads/moment.js"></script>'))
+
+            for row in self.rows:
+                _tr = TR()
+                for field in self.fields:
+                    if field.name not in [x.name for x in self.hidden_fields] and \
+                            (field.name != 'id' or (field.name == 'id' and self.show_id)):
+                        if field.type == 'date':
+                            _tr.append(
+                                TD(XML("<script>\ndocument.write("
+                                       "moment(\"%s\").format('L'));\n</script>" % row[field.name]) \
+                                       if row and field and field.name in row and row[field.name] else '',
+                                   _class='has-text-centered'))
+                        elif field.type == 'boolean':
+                            #  True/False - only show on True, blank for False
+                            if row and field and field.name in row and row[field.name]:
+                                _td = TD(_class='has-text-centered')
+                                _span = SPAN(_class='icon is-small')
+                                _span.append(I(_class='fas fa-check-circle'))
+                                _td.append(_span)
+                                _tr.append(_td)
+                            else:
+                                _tr.append(TD(XML('&nbsp;')))
+                        else:
+                            _tr.append(
+                                TD(row[field.name] if row and field and field.name in row and row[field.name] else ''))
+
+                _td = None
+                if (self.details and self.details != '') or \
+                        (self.editable and self.editable != '') or \
+                        (self.deletable and self.deletable != ''):
+                    _td = TD(_class='center', _style='text-align: center; white-space: nowrap;')
+                    if self.details and self.details != '':
+                        if isinstance(self.details, str):
+                            details_url = self.details
+                        else:
+                            details_url = URL(self.endpoint) + '/details/%s' % self.tablename
+                        if self.include_action_button_text:
+                            _a = A(_href=details_url + '/%s?user_signature=%s&page=%s' % (row.id,
+                                                                                       self.user_signature,
+                                                                                       self.current_page_number),
+                                   _class='button is-small')
+                            _span = SPAN(_class='icon is-small')
+                            _span.append(I(_class='fas fa-id-card'))
+                            _a.append(_span)
+                            _a.append(SPAN('Details'))
+                        else:
+                            _a = A(I(_class='fas fa-id-card'),
+                                   _href=details_url + '/%s?user_signature=%s&page=%s' % (row.id,
+                                                                                          self.user_signature,
+                                                                                          self.current_page_number),
+                                   _class='button is-small')
+                        _td.append(_a)
+                    if self.editable and self.editable != '':
+                        if isinstance(self.editable, str):
+                            edit_url = self.editable
+                        else:
+                            edit_url = URL(self.endpoint) + '/edit/%s' % self.tablename
+                        if self.include_action_button_text:
+                            _a = A(_href=edit_url + '/%s?user_signature=%s&page=%s' % (row.id,
+                                                                                       self.user_signature,
+                                                                                       self.current_page_number),
+                                   _class='button is-small')
+                            _span = SPAN(_class='icon is-small')
+                            _span.append(I(_class='fas fa-edit'))
+                            _a.append(_span)
+                            _a.append(SPAN('Edit'))
+                        else:
+                            _a = A(I(_class='fas fa-edit'),
+                                   _href=edit_url + '/%s?user_signature=%s&page=%s' % (row.id,
+                                                                                       self.user_signature,
+                                                                                       self.current_page_number),
+                                   _class='button is-small')
+                        _td.append(_a)
+                    if self.deletable and self.deletable != '':
+                        if isinstance(self.deletable, str):
+                            delete_url = self.deletable
+                        else:
+                            delete_url = URL(self.endpoint) + '/delete/%s' % self.tablename
+                        if self.include_action_button_text:
+                            _a = A(_href=delete_url + '/%s?user_signature=%s' % (row.id, self.user_signature),
+                                   _class='confirmation button is-small',
+                                   _message='You have asked to delete row %s' % str(row.id))
+                            _span = SPAN(_class='icon is-small action-button-image')
+                            _span.append(I(_class='fas fa-trash'))
+                            _a.append(_span)
+                            _a.append(SPAN('Delete'))
+                        else:
+                            _a = A(I(_class='fas fa-trash'),
+                                   _href=delete_url + '/%s?user_signature=%s' % (row.id, self.user_signature),
+                                   _class='confirmation button is-small',
+                                   _message='You have asked to delete row %s' % str(row.id))
+                        _td.append(_a)
+                    _tr.append(_td)
+                _table.append(_tr)
+
+            _html.append(_table)
+
+            _row_count = DIV(_class='is-pulled-left')
+            _row_count.append(
+                P('Displaying rows %s thru %s of %s' % (self.page_start + 1 if self.number_of_pages > 1 else 1,
+                                                        self.page_end if self.page_end < self.total_number_of_rows else
+                                                        self.total_number_of_rows,
+                                                        self.total_number_of_rows)))
+            _html.append(_row_count)
+
+            #  build the pager
+            _pager = DIV(_class='is-pulled-right')
+            for page_number in self.iter_pages():
+                if page_number:
+                    pager_query_parms = dict(self.query_parms)
+                    pager_query_parms['page'] = page_number
+                    pager_query_parms['user_signature'] = self.user_signature
+                    if self.current_page_number == page_number:
+                        _pager.append(A(page_number, _class='button is-primary is-small',
+                                        _href=URL(self.endpoint, vars=pager_query_parms)))
+                    else:
+                        _pager.append(A(page_number, _class='button is-small',
+                                        _href=URL(self.endpoint, vars=pager_query_parms)))
+                else:
+                    _pager.append('...')
+
+            if self.number_of_pages > 1:
+                _html.append(_pager)
+
+            if self.deletable:
+                _html.append((XML("""
+                    <script type="text/javascript">
+                    $('.confirmation').on('click', function () {
+                        return confirm($(this).attr('message') +' - Are you sure?');
+                    });
+                    </script>
+                """)))
+        elif self.action in ['new', 'details', 'edit']:
+            _html = DIV(_class='card')
+            _card_content = DIV(_class='card-content')
+            _media = DIV(_class='media')
+            _media_left = DIV(_class='media-left')
+            _figure = FIGURE(_class='image is-48x48')
+            if self.action in ['new', 'edit']:
+                icon = 'fa-edit'
+                if self.action == 'new':
+                    icon = 'fa-plus'
+                ttl = '%s %s' % (self.action, self.tablename.replace('_', ' '))
             else:
-                _pager.append('...')
+                icon = 'fa-id-card'
+                ttl = '%s Details' % self.tablename
+            _figure.append(I(_class="fas %s fa-2x" % icon))
+            _media_left.append(_figure)
+            _media.append(_media_left)
+            _title = P(ttl.title(), _class='title is-4')
+            _media_content = DIV(_class='media-content')
+            _media_content.append(_title)
+            _media.append(_media_content)
+            _card_content.append(_media)
 
-        if self.number_of_pages > 1:
-            _html.append(_pager)
+            _form_content = DIV(_class='content')
+            _form_content.append(XML(self.form))
+            _card_content.append(_form_content)
+            _html.append(_card_content)
 
         return str(_html)
+
+
+def FormStyleSimpleTable(table, vars, errors, readonly, deletable):
+    classes = {
+        "outer": "field",
+        "inner": "control",
+        "label": "label is-uppercase",
+        "info": "help",
+        "error": "help is-danger py4web-validation-error",
+        "submit": "button is-success",
+        "input": "input",
+        "input[type=text]": "input",
+        "input[type=date]": "input",
+        "input[type=time]": "input",
+        "input[type=datetime-local]": "input",
+        "input[type=radio]": "radio",
+        "input[type=checkbox]": "checkbox",
+        "input[type=submit]": "button",
+        "input[type=password]": "password",
+        "input[type=file]": "file",
+        "select": "control select",
+        "textarea": "textarea",
+    }
+    return FormStyleDefault(table, vars, errors, readonly, deletable, classes)

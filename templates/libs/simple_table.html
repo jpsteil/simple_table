@@ -3,17 +3,3 @@
 <div class="container" style="padding-top: 1em;">
     [[=XML(grid)]]
 </div>
-    <!-- Include jQuery - see http://jquery.com -->
-    <script type="text/javascript">
-        $('.confirmation').on('click', function () {
-
-            btn = $(this);
-            thisHref = btn.attr('href');
-            msg = btn.attr('message');
-
-            return confirm(msg +' - Are you sure?');
-        });
-    </script>
-
-
-    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
