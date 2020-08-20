@@ -8,7 +8,7 @@ from py4web.utils.grid import Grid
 from pydal.validators import IS_NULL_OR, IS_IN_SET
 from .common import db, session, auth, unauthenticated
 from .libs.datatables import DataTablesField, DataTablesRequest, DataTablesResponse
-from .libs.simple_table import SimpleTable, get_signature, get_storage_value
+from .libs.simple_table import SimpleTable, get_signature, get_storage_value, ActionButton
 from py4web.utils.publisher import Publisher, ALLOW_ALL_POLICY  # for ajax_grid
 
 #  exposes services necessary to access the db.thing via ajax
@@ -103,7 +103,17 @@ def zip_codes(action=None, tablename=None, record_id=None):
                        search_button='Filter',
                        user_signature=user_signature,
                        requires=requires,
-                       include_action_button_text=True)
+                       include_action_button_text=True,
+                       pre_action_buttons=[ActionButton(URL('copy'), 'Copy',
+                                                        icon='fa-copy',
+                                                        append_id=True,
+                                                        append_signature=True,
+                                                        append_page=True),
+                                           ActionButton(URL('to_excel'), 'Export',
+                                                        icon='fa-file-excel',
+                                                        append_id=True,
+                                                        append_signature=True,
+                                                        append_page=True)])
 
     return dict(grid=grid)
 

@@ -65,7 +65,9 @@ class SimpleTable:
                  include_action_button_text=False,
                  search_button=None,
                  requires=None,
-                 user_signature=None):
+                 user_signature=None,
+                 pre_action_buttons=None,
+                 post_action_buttons=None):
         """
         SimpleTable is a searchable/sortable/pageable grid
 
@@ -87,6 +89,8 @@ class SimpleTable:
         :param requires: dict of fields and their 'requires' parm for building edit pages - dict key should be
                          tablename.fieldname
         :param user_signature: id of the cookie containing saved values
+        :param pre_action_buttons: list of action_button instances to include before the standard action buttons
+        :param post_action_buttons: list of action_button instances to include after the standard action buttons
         """
         self.query_parms = request.params
         self.endpoint = request.route.call.__name__
@@ -232,6 +236,10 @@ class SimpleTable:
                 self.number_of_pages += 1
             self.include_action_button_text = include_action_button_text
             self.user_signature = user_signature
+
+            self.pre_action_buttons = pre_action_buttons
+            self.post_action_buttons = post_action_buttons
+
             storage_values['page'] = self.current_page_number
 
             set_storage_values(user_signature, storage_values)
@@ -347,7 +355,23 @@ class SimpleTable:
 
             current += 1
 
-    def render_action_button(self, url, button_text, icon, size='small'):
+    def render_action_button(self,
+                             url,
+                             button_text,
+                             icon,
+                             size='small',
+                             row_id=None,
+                             user_signature=None,
+                             page=None):
+        separator = '?'
+        if row_id:
+            url += '/%s' % (row_id)
+        if user_signature:
+            url += '%suser_signature=%s' % (separator, user_signature)
+            separator = '&'
+        if page:
+            url += '%spage=%s' % (separator, page)
+
         if self.include_action_button_text:
             _a = A(_href=url, _class='button is-%s' % size, _title=button_text)
             _span = SPAN(_class='icon is-%s' % size)
@@ -494,6 +518,16 @@ class SimpleTable:
                     (self.editable and self.editable != '') or \
                     (self.deletable and self.deletable != ''):
                 _td = TD(_class='center', _style='text-align: center; white-space: nowrap;')
+                if self.pre_action_buttons:
+                    for btn in self.pre_action_buttons:
+                        _td.append(self.render_action_button(btn.url,
+                                                             btn.text,
+                                                             btn.icon,
+                                                             row_id=row_id if btn.append_id else None,
+                                                             user_signature=self.user_signature
+                                                                if btn.append_signature else None,
+                                                             page=self.current_page_number
+                                                                if btn.append_page else None))
                 if self.details and self.details != '':
                     if isinstance(self.details, str):
                         details_url = self.details
@@ -509,10 +543,9 @@ class SimpleTable:
                         edit_url = self.editable
                     else:
                         edit_url = URL(self.endpoint) + '/edit/%s' % self.tablename
-                    edit_url += '/%s?user_signature=%s&page=%s' % (row_id,
-                                                                   self.user_signature,
-                                                                   self.current_page_number)
-                    _td.append(self.render_action_button(edit_url, 'Edit', 'fa-edit'))
+                    _td.append(self.render_action_button(edit_url, 'Edit', 'fa-edit', row_id=row_id,
+                                                         user_signature=self.user_signature,
+                                                         page=self.current_page_number))
 
                 if self.deletable and self.deletable != '':
                     if isinstance(self.deletable, str):
@@ -521,6 +554,16 @@ class SimpleTable:
                         delete_url = URL(self.endpoint) + '/delete/%s' % self.tablename
                     delete_url += '/%s?user_signature=%s' % (row_id, self.user_signature)
                     _td.append(self.render_action_button(delete_url, 'Delete', 'fa-trash'))
+                if self.post_action_buttons:
+                    for btn in self.post_action_buttons:
+                        _td.append(self.render_action_button(btn.url,
+                                                             btn.text,
+                                                             btn.icon,
+                                                             row_id=row_id if btn.append_id else None,
+                                                             user_signature=self.user_signature
+                                                                if btn.append_signature else None,
+                                                             page=self.current_page_number
+                                                                if btn.append_page else None))
                 _tr.append(_td)
             _tbody.append(_tr)
 
@@ -635,3 +678,19 @@ def FormStyleSimpleTable(table, vars, errors, readonly, deletable):
         "textarea": "textarea",
     }
     return FormStyleDefault(table, vars, errors, readonly, deletable, classes)
+
+
+class ActionButton:
+    def __init__(self,
+                 url,
+                 text,
+                 icon='fa-calendar',
+                 append_id=False,
+                 append_signature=False,
+                 append_page=False):
+        self.url = url
+        self.text = text
+        self.icon = icon
+        self.append_id = append_id
+        self.append_signature = append_signature
+        self.append_page = append_page
