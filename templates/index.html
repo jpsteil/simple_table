@@ -1,9 +1,132 @@
 [[extend 'layout.html']]
 <style type="text/css">
-    .py4web-grid-header {
-        padding-bottom: 1em;
+    section.section {
+        padding-bottom: 0px;
+    }
+    .example {
+        padding-bottom: .5rem;
+    }
+    .example a {
+        font-size: larger;
+    }
+    .feature {
+        padding-left: .5rem;
     }
 </style>
 <div class="container" style="padding-top: 1em;">
-    [[=XML(form)]]
+    <div class="title">SIMPLE TABLE</div>
+    <p>
+        The simple_table application is a proof-of-concept / playground to analyze different web grids in py4web. The
+        sample application includes samples using simple_table, the py4web HTML grid and a datatables.net
+        implementation.
+    </p>
+    <section class="section">
+        <div class="container">
+            <h1 class="title">Simple Table Examples</h1>
+            <div class="example">
+                <a class="" href="[[=URL('zip_codes')]]">ZIP Code database</a>
+                <p>Simple CRUD over 40,000 record table.  Highlight basic implementation of simple_table.</p>
+                <p class="feature">- Click column heads for sorting - click again for DESC</p>
+                <p class="feature">- Pagination control</p>
+                <p class="feature">- Filter Form - you supply and control filtering</p>
+                <p class="feature">- Action Buttons - with or without text</p>
+                <p class="feature">- Full CRUD with Delete Confirmation</p>
+            </div>
+            <div class="example">
+                <a href="[[=URL('companies')]]">Companies</a>
+                <p>Companies CRUD - code table for use with Employees</p>
+            </div>
+            <div class="example">
+                <a href="[[=URL('departments')]]">Departments</a>
+                <p>Departments CRUD code table for use with Employees</p>
+            </div>
+            <div class="example">
+                <a href="[[=URL('employees')]]">Employees</a>
+                <p>Employees CRUD - Shows LEFT OUTER JOINs to bring in foreign key descriptive fields.</p>
+                <p class="feature">- Fitler dropdowns from alternate tables</p>
+                <p class="feature">- Search filter over concatenated table fields</p>
+                <p class="feature">- Auto date formatting based on browser locale</p>
+                <p class="feature">- Display boolean fields with font-awesome checkbox</p>
+                <p class="feature">- LEFT JOIN to control display of foreign keys</p>
+            </div>
+        </div>
+    </section>
+    <section class="section">
+        <div class="container">
+            <h1 class="title">HTML Grid Examples</h1>
+            <div class="example">
+                <a href="[[=URL('grid')]]">HTML Grid</a>
+                <p>py4web HTML grid ZIP Code CRUD</p>
+            </div>
+        </div>
+    </section>
+    <section class="section">
+        <div class="container">
+            <h1 class="title">HTML Grid Examples</h1>
+            <div class="example">
+                <a href="[[=URL('datatables')]]">Datatables.net</a>
+                <p>Datatables.net ZIP Code CRUD</p>
+            </div>
+        </ul>
+            </div>
+        </div>
+    </section>
+    <section class="section">
+        <div class="container">
+            <h1 class="title">Model / Database</h1>
+            <h2 class="subtitle">
+                The following model is used within the application.  It is delivered as a SQLite database.
+            </h2>
+    <pre><code>db.define_table('zip_code',
+        Field('id', 'id', readable=False),
+        Field('zip_code', length=5, required=True, unique=True,
+              requires=[IS_NOT_EMPTY(),
+                        IS_NOT_IN_DB(db, 'zip_code.zip_code')]),
+        Field('zip_type'),
+        Field('primary_city'),
+        Field('state'),
+        Field('county'),
+        Field('timezone'),
+        Field('area_code'),
+        Field('latitude', 'decimal(5,2)'),
+        Field('longitude', 'decimal(5,2)'),
+        format='%(zip_code)s')
+
+db.executesql('CREATE INDEX IF NOT EXISTS zip_code__idx ON zip_code (zip_code);')
+db.executesql('CREATE INDEX IF NOT EXISTS zip_code_2__idx ON zip_code (zip_code, county, primary_city);')
+
+db.define_table('company',
+                Field('name', length=50))
+
+db.define_table('department',
+                Field('name', length=50))
+
+db.define_table('employee',
+                Field('first_name', length=50),
+                Field('last_name', length=50),
+                Field('company_name', length=50),
+                Field('address', length=50),
+                Field('city', length=50),
+                Field('county', length=50),
+                Field('state', length=50),
+                Field('zip_code', length=50),
+                Field('phone_1', length=50),
+                Field('phone_2', length=50),
+                Field('email', length=50),
+                Field('web', length=50),
+                Field('supervisor', 'reference employee',
+                      requires=IS_NULL_OR(IS_IN_DB(db, 'employee.id',
+                                                   '%(last_name)s, %(first_name)s',
+                                                   zero='..'))),
+                Field('company', 'reference company',
+                      requires=IS_NULL_OR(IS_IN_DB(db, 'company.id',
+                                                   '%(name)s',
+                                                   zero='..'))),
+                Field('department', 'reference department',
+                      requires=IS_NULL_OR(IS_IN_DB(db, 'department.id',
+                                                   '%(name)s',
+                                                   zero='..'))),
+                Field('hired', 'date', requires=IS_NULL_OR(IS_DATE())))</code></pre>
+        </div>
+    </section>
 </div>

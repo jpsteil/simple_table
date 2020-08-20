@@ -33,3 +33,55 @@ CREATE TABLE "zip_code"(
     "longitude" DOUBLE
 );
 success!
+timestamp: 2020-08-20T10:34:18.663277
+CREATE TABLE "company"(
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "name" CHAR(50)
+);
+timestamp: 2020-08-20T10:35:34.995920
+CREATE TABLE "company"(
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "name" CHAR(50)
+);
+timestamp: 2020-08-20T10:36:04.399114
+CREATE TABLE "company"(
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "name" CHAR(50)
+);
+faked!
+timestamp: 2020-08-20T10:36:04.399456
+CREATE TABLE "department"(
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "name" CHAR(50)
+);
+faked!
+timestamp: 2020-08-20T10:36:04.399990
+CREATE TABLE "employee"(
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "first_name" CHAR(50),
+    "last_name" CHAR(50),
+    "company_name" CHAR(50),
+    "address" CHAR(50),
+    "city" CHAR(50),
+    "county" CHAR(50),
+    "state" CHAR(50),
+    "zip_code" CHAR(50),
+    "phone_1" CHAR(50),
+    "phone_2" CHAR(50),
+    "email" CHAR(50),
+    "web" CHAR(50),
+    "supervisor" CHAR(50)
+);
+faked!
+timestamp: 2020-08-20T10:38:19.426967
+ALTER TABLE "employee" ADD "company" INTEGER REFERENCES "company" ("id") ON DELETE CASCADE  ;
+timestamp: 2020-08-20T10:38:19.432916
+ALTER TABLE "employee" ADD "department" INTEGER REFERENCES "department" ("id") ON DELETE CASCADE  ;
+success!
+success!
+timestamp: 2020-08-20T11:19:11.336436
+ALTER TABLE "employee" ADD "hired" DATE;
+success!
+timestamp: 2020-08-20T15:18:55.260558
+ALTER TABLE "employee" ADD "active" CHAR(1);
+success!

@@ -16,10 +16,17 @@ publisher = Publisher(db, policy=ALLOW_ALL_POLICY)
 
 
 @action('index', method=['POST', 'GET'])
-@action('index/<action>/<tablename>/<record_id>', method=['POST', 'GET'])
 @action('/', method=['POST', 'GET'])
+@action.uses(session, db, auth, 'index.html')
+def index():
+
+    return dict()
+
+
+@action('zip_codes', method=['POST', 'GET'])
+@action('zip_codes/<action>/<tablename>/<record_id>', method=['POST', 'GET'])
 @action.uses(session, db, auth, 'libs/simple_table.html')
-def index(action=None, tablename=None, record_id=None):
+def zip_codes(action=None, tablename=None, record_id=None):
     fields = [db.zip_code.id,
               db.zip_code.zip_code,
               db.zip_code.zip_type,
@@ -102,7 +109,7 @@ def index(action=None, tablename=None, record_id=None):
 
 
 @action('grid', method=['POST', 'GET'])
-@action.uses(session, db, auth, 'index.html')
+@action.uses(session, db, auth, 'grid.html')
 def grid():
     fields = ['id',
               'zip_code',
@@ -239,3 +246,141 @@ def FormStyleSimpleTable(table, vars, errors, readonly, deletable):
         "textarea": "textarea",
     }
     return FormStyleDefault(table, vars, errors, readonly, deletable, classes)
+
+
+@action('companies', method=['POST', 'GET'])
+@action('companies/<action>/<tablename>/<record_id>', method=['POST', 'GET'])
+@action.uses(session, db, auth, 'libs/simple_table.html')
+def companies(action=None, tablename=None, record_id=None):
+    #  check session to see if we've saved a default value
+    user_signature = get_signature()
+    search_filter = get_storage_value(user_signature, 'search_filter', None)
+
+    search_form = Form([Field('search', length=50, default=search_filter, _placeholder='...search text...',
+                              _title='Enter search text and click on Filter')],
+                       keep_values=True, formstyle=FormStyleSimpleTable, )
+
+    if search_form.accepted:
+        search_filter = search_form.vars['search']
+
+    queries = [(db.company.id > 0)]
+    if search_filter:
+        queries.append(db.company.name.contains(search_filter))
+
+    orderby = [db.company.name]
+
+    grid = SimpleTable(queries,
+                       search_form=search_form,
+                       storage_values=dict(search_filter=search_filter),
+                       orderby=orderby,
+                       create=True,
+                       details=True,
+                       editable=True,
+                       deletable=True,
+                       search_button='Filter',
+                       user_signature=user_signature,
+                       include_action_button_text=True)
+
+    return dict(grid=grid)
+
+
+@action('departments', method=['POST', 'GET'])
+@action('departments/<action>/<tablename>/<record_id>', method=['POST', 'GET'])
+@action.uses(session, db, auth, 'libs/simple_table.html')
+def departments(action=None, tablename=None, record_id=None):
+    #  check session to see if we've saved a default value
+    user_signature = get_signature()
+    search_filter = get_storage_value(user_signature, 'search_filter', None)
+
+    search_form = Form([Field('search', length=50, default=search_filter, _placeholder='...search text...',
+                              _title='Enter search text and click on Filter')],
+                       keep_values=True, formstyle=FormStyleSimpleTable, )
+
+    if search_form.accepted:
+        search_filter = search_form.vars['search']
+
+    queries = [(db.department.id > 0)]
+    if search_filter:
+        queries.append(db.department.name.contains(search_filter))
+
+    orderby = [db.department.name]
+
+    grid = SimpleTable(queries,
+                       search_form=search_form,
+                       storage_values=dict(search_filter=search_filter),
+                       orderby=orderby,
+                       create=True,
+                       details=True,
+                       editable=True,
+                       deletable=True,
+                       search_button='Filter',
+                       user_signature=user_signature,
+                       include_action_button_text=True)
+
+    return dict(grid=grid)
+
+
+@action('employees', method=['POST', 'GET'])
+@action('employees/<action>/<tablename>/<record_id>', method=['POST', 'GET'])
+@action.uses(session, db, auth, 'libs/simple_table.html')
+def employees(action=None, tablename=None, record_id=None):
+    #  check session to see if we've saved a default value
+    user_signature = get_signature()
+    company_filter = get_storage_value(user_signature, 'company_filter', None)
+    department_filter = get_storage_value(user_signature, 'department_filter', None)
+    search_filter = get_storage_value(user_signature, 'search_filter', None)
+
+    search_form = Form([Field('company', 'reference company',
+                              requires=db.employee.company.requires,
+                              default=company_filter,
+                              _title='Filter by Company'),
+                        Field('department', 'reference department',
+                              requires=db.employee.department.requires,
+                              default=department_filter,
+                              _title='Filter by Department'),
+                        Field('search', length=50, default=search_filter, _placeholder='...search text...',
+                              _title='Enter search text and click on Filter')],
+                       keep_values=True, formstyle=FormStyleSimpleTable, )
+
+    if search_form.accepted:
+        company_filter = search_form.vars['company']
+        department_filter = search_form.vars['department']
+        search_filter = search_form.vars['search']
+
+    queries = [(db.employee.id > 0)]
+    if search_filter:
+        queries.append("first_name || ' ' || last_Name LIKE '%%%s%%'" % search_filter)
+    if company_filter:
+        queries.append(db.company.id == company_filter)
+    if department_filter:
+        queries.append(db.department.id == department_filter)
+
+    orderby = [db.employee.last_name, db.employee.first_name]
+
+    fields = [db.employee.id,
+              db.employee.first_name,
+              db.employee.last_name,
+              db.company.name,
+              db.department.name,
+              db.employee.hired,
+              db.employee.supervisor,
+              db.employee.active]
+
+    grid = SimpleTable(queries,
+                       search_form=search_form,
+                       fields=fields,
+                       left=[db.company.on(db.employee.company==db.company.id),
+                             db.department.on(db.employee.department==db.department.id)],
+                       storage_values=dict(company_filter=company_filter,
+                                           department_filter=department_filter,
+                                           search_filter=search_filter),
+                       orderby=orderby,
+                       create=True,
+                       details=True,
+                       editable=True,
+                       deletable=True,
+                       search_button='Filter',
+                       user_signature=user_signature,
+                       include_action_button_text=True)
+
+    return dict(grid=grid)
