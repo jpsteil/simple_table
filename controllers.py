@@ -103,7 +103,6 @@ def zip_codes(action=None, tablename=None, record_id=None):
                        search_button='Filter',
                        user_signature=user_signature,
                        requires=requires,
-                       include_action_button_text=True,
                        pre_action_buttons=[ActionButton(URL('copy'), 'Copy',
                                                         icon='fa-copy',
                                                         append_id=True,
@@ -339,6 +338,8 @@ def employees(action=None, tablename=None, record_id=None):
     company_filter = get_storage_value(user_signature, 'company_filter', None)
     department_filter = get_storage_value(user_signature, 'department_filter', None)
     search_filter = get_storage_value(user_signature, 'search_filter', None)
+
+    x = db.employee(347)
 
     search_form = Form([Field('company', 'reference company',
                               requires=db.employee.company.requires,

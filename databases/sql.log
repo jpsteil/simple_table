@@ -85,3 +85,10 @@ success!
 timestamp: 2020-08-20T15:18:55.260558
 ALTER TABLE "employee" ADD "active" CHAR(1);
 success!
+timestamp: 2020-08-21T08:16:50.971527
+CREATE TABLE "person"(
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "first" CHAR(25),
+    "last" CHAR(25)
+);
+success!

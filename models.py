@@ -55,6 +55,7 @@ db.define_table('employee',
                       requires=IS_NULL_OR(IS_IN_DB(db, 'department.id',
                                                    '%(name)s',
                                                    zero='..'))),
+                Field.Virtual('fullname', lambda x: f'{x.employee.first_name} {x.employee.last_name}'),
                 Field('hired', 'date', requires=IS_NULL_OR(IS_DATE())),
                 Field('active', 'boolean', default=False))
 
