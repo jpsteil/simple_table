@@ -239,3 +239,122 @@ def FormStyleSimpleTable(table, vars, errors, readonly, deletable):
         "textarea": "textarea",
     }
     return FormStyleDefault(table, vars, errors, readonly, deletable, classes)
+#/////////////////////////////////////////////////////////////////////////
+#EMPLOYEE
+#Datatables edit facility - Based on Example 3 from https://github.com/KasperOlesen/DataTable-AltEditor
+#/////////////////////////////////////////////////////////////////////////
+#This returns the
+@unauthenticated
+@action('employee', method=['GET'])
+@action.uses(session, db, auth, 'employee.html')
+def employee():
+    """
+    display a page with a datatables.net with AltEditor on it
+    The datatable will get data from employee_data, see employee.html
+    :return:
+    """
+    return dict()
+
+@unauthenticated
+@action('employee_data', method=['GET'])
+@action.uses(session, db, auth)
+def employee_data():
+    """
+    :return:
+    return data in JSON format: e.g.:
+    [{"id":1, "name":"Tigerrrr Nixon", "position":"System Architect", "office":"Edinburgh", "extension":"5421", "startDate":"2011/04/25", "salary":"Tiger Nixon"},
+    {"id":2, "name":"Garrett Winters", "position":"Accountant", "office":"Tokyo", "extension":"8422", "startDate":"2011/07/25", "salary":"Garrett Winters"}]
+
+    """
+    queries = [(db.employee.id > 0)]
+    query = reduce(lambda a, b: (a & b), queries)
+
+    data = [dict(id=z.id,
+                 name=z.name,
+                 position=z.position,
+                 office=z.office,
+                 extension=z.extension,
+                 startDate=z.startDate,
+                 salary=z.salary,
+                 ) for z in db(query).select()]
+
+    return json.dumps(data)
+
+#EDIT
+@action('employee/<employee_id>', method=['PUT', 'POST', 'GET'])
+@action.uses(session, db, auth, 'employee.html')
+def employee(employee_id):
+    """
+    This handles Ajax Put and Post requests. See lines 107 and 127 of employee.html
+    Create/PUT:
+    url: 'employee/0',
+    type: 'PUT',
+
+    Edit/POST:
+    url: 'employee/'+rowdata.id,
+    type: 'POST',
+    :return:
+    This function must return one compelte row of the new or edited row in JSON format for the table to update itself via Ajax.
+    e.g.: {"id":10, "name":"Name modified by server", "position":"Modified position", "office":"", "extension":"", "startDate":"", "salary":""}
+    """
+    if request.method == 'GET':
+        if int(employee_id) > 0:
+            z = db(db.employee.id == int(employee_id)).select().first()
+            data = dict(id=z.id,
+                         name=z.name,
+                         position=z.position,
+                         office=z.office,
+                         extension=z.extension,
+                         startDate=z.startDate,
+                         salary=z.salary,
+                         )
+            return json.dumps(data)
+
+    if request.method == 'PUT':
+        #if employee_id == 0:
+        #Create new
+        #Do other specific error checking here.
+        newid = db.employee.insert(name=request.forms.get('name'), position=request.forms.get('position'), office=request.forms.get('office'),
+                           extension=request.forms.get('extension'), startDate=request.forms.get('startdate'), salary=request.forms.get('salary'))
+        z = db(db.employee.id == int(newid)).select().first()
+        data = dict(id=z.id,
+                     name=z.name,
+                     position=z.position,
+                     office=z.office,
+                     extension=z.extension,
+                     startDate=z.startDate,
+                     salary=z.salary)
+        return json.dumps(data)
+        #return """[{"id": 3, "name": "Ass", "position": "ret", "office": "london", "extension": "1", "startDate": null, "salary": "100000"}]"""
+
+    if request.method == 'POST':
+        if int(employee_id) > 0:
+            z = db(db.employee.id == int(employee_id)).select().first()
+            z.update_record(name=request.forms.get('name'), position=request.forms.get('position'), office=request.forms.get('office'),
+                               extension=request.forms.get('extension'), startDate=request.forms.get('startdate'), salary=request.forms.get('salary'))
+            z = db(db.employee.id == int(employee_id)).select().first()
+            data = [dict(id=z.id,
+                         name=z.name,
+                         position=z.position,
+                         office=z.office,
+                         extension=z.extension,
+                         startDate=z.startDate,
+                         salary=z.salary)]
+            return json.dumps(data)
+
+
+#/////////////////////////////////////////////////////////////////////////
+#DELETE
+@action('employee/delete/<employee_id>', method=['DELETE','GET', 'POST'])
+@action.uses(session, db, auth, 'employee.html')
+def employee_delete(employee_id):
+    """
+    This handles delete requests
+    url: 'employee/delete/' + rowdata.id,
+    type: 'DELETE',
+    :return:
+    Dont need to return anything
+    """
+    result = db(db.employee.id == employee_id).delete()
+    return dict()
+#/////////////////////////////////////////////////////////////////////////
