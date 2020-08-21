@@ -256,6 +256,21 @@ def FormStyleSimpleTable(table, vars, errors, readonly, deletable):
         "textarea": "textarea",
     }
     return FormStyleDefault(table, vars, errors, readonly, deletable, classes)
+#/////////////////////////////////////////////////////////////////////////
+#EMPLOYEE
+#Datatables edit facility - Based on Example 3 from https://github.com/KasperOlesen/DataTable-AltEditor
+#/////////////////////////////////////////////////////////////////////////
+#This returns the
+@unauthenticated
+@action('employee', method=['GET'])
+@action.uses(session, db, auth, 'employee.html')
+def employee():
+    """
+    display a page with a datatables.net with AltEditor on it
+    The datatable will get data from employee_data, see employee.html
+    :return:
+    """
+    return dict()
 
 
 @action('companies', method=['POST', 'GET'])
