@@ -59,4 +59,19 @@ db.define_table('employee',
                 Field('hired', 'date', requires=IS_NULL_OR(IS_DATE())),
                 Field('active', 'boolean', default=False))
 
+db.define_table('contractor',
+                Field('id', 'id', readable=False),
+                Field('name'),
+                Field('position'),
+                Field('office'),
+                Field('extension'),
+                Field('startDate'),
+                Field('salary'),
+                format='%(contractor)s')
+if not db(db.contractor).count():
+    db.contractor.insert(name='Martha', position='Software', office='london', extension='1', startDate="2011/07/25", salary=100000)
+    db.contractor.insert(name='Gavin Cortez', position='Developer', office='london', extension='1', startDate="2011/07/25", salary=100000)
+    db.contractor.insert(name='Suki Burks', position='Assistant', office='london', extension='1', startDate="2011/07/25", salary=100000)
+    db.contractor.insert(name='Fiona Green', position='Support', office='london', extension='1', startDate="2011/07/25", salary=100000)
+    db.contractor.insert(name='Peanut', position='great', office='london', extension='1', startDate="2011/07/25", salary=100000)
 db.commit()
