@@ -5,9 +5,10 @@ These are fixtures that every app needs so probably you will not be editing this
 import os
 import sys
 import logging
-from py4web import Session, Cache, Translator, DAL, Field
+from py4web import Session, Cache, Translator, DAL, Field, action
 from py4web.utils.mailer import Mailer
 from py4web.utils.auth import Auth
+from py4web.utils.downloader import downloader
 from py4web.utils.tags import Tags
 from py4web.utils.factories import ActionFactory
 from . import settings
@@ -107,6 +108,21 @@ if settings.OAUTH2FACEBOOK_CLIENT_ID:
             callback_url="auth/plugin/oauth2facebook/callback",
         )
     )
+
+# #######################################################
+# Define a convenience action to allow users to download
+# files uploaded and reference by Field(type='upload')
+# #######################################################
+if settings.UPLOAD_PATH:
+    @action('download/<filename>')
+    @action.uses(db)
+    def download(filename):
+        return downloader(db, settings.UPLOAD_PATH, filename)
+    # To take advtange of this in Form(s)
+    # for every field of type upload you MUST specify:
+    #
+    # field.upload_path = settings.UPLOAD_PATH
+    # field.download_url = lambda filename: URL('download/%s' % filename)
 
 if settings.USE_CELERY:
     from celery import Celery

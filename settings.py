@@ -16,6 +16,9 @@ DB_FOLDER = os.path.join(APP_FOLDER, "databases")
 DB_URI = "sqlite://storage.db"
 DB_POOL_SIZE = 1
 
+# location where to store uploaded files:
+UPLOAD_PATH = os.path.join(APP_FOLDER, "uploads")
+
 # send email on regstration
 VERIFY_EMAIL = False
 

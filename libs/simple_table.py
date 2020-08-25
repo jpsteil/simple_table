@@ -360,6 +360,8 @@ class SimpleTable:
                              button_text,
                              icon,
                              size='small',
+                             additional_classes=None,
+                             message=None,
                              row_id=None,
                              user_signature=None,
                              page=None):
@@ -372,8 +374,15 @@ class SimpleTable:
         if page:
             url += '%spage=%s' % (separator, page)
 
+        classes = None
+        if additional_classes:
+            if isinstance(additional_classes, list):
+                classes = ' '.join(additional_classes)
+            else:
+                classes = additional_classes
+
         if self.include_action_button_text:
-            _a = A(_href=url, _class='button is-%s' % size, _title=button_text)
+            _a = A(_href=url, _class='button is-%s %s' % (size, classes), _message=message, _title=button_text)
             _span = SPAN(_class='icon is-%s' % size)
             _span.append(I(_class='fas %s' % icon))
             _a.append(_span)
@@ -381,7 +390,8 @@ class SimpleTable:
         else:
             _a = A(I(_class='fas %s' % icon),
                    _href=url,
-                   _class='button is-%s' % size,
+                   _class='button is-%s %s' % (size, classes),
+                   _message=message,
                    _title=button_text)
 
         return _a
@@ -523,6 +533,8 @@ class SimpleTable:
                         _td.append(self.render_action_button(btn.url,
                                                              btn.text,
                                                              btn.icon,
+                                                             additional_classes=btn.additional_classes,
+                                                             message=btn.message,
                                                              row_id=row_id if btn.append_id else None,
                                                              user_signature=self.user_signature
                                                                 if btn.append_signature else None,
@@ -553,12 +565,16 @@ class SimpleTable:
                     else:
                         delete_url = URL(self.endpoint) + '/delete/%s' % self.tablename
                     delete_url += '/%s?user_signature=%s' % (row_id, self.user_signature)
-                    _td.append(self.render_action_button(delete_url, 'Delete', 'fa-trash'))
+                    _td.append(self.render_action_button(delete_url, 'Delete', 'fa-trash',
+                                                         additional_classes='confirmation',
+                                                         message='Delete record'))
                 if self.post_action_buttons:
                     for btn in self.post_action_buttons:
                         _td.append(self.render_action_button(btn.url,
                                                              btn.text,
                                                              btn.icon,
+                                                             additional_classes=btn.additional_classes,
+                                                             message=btn.message,
                                                              row_id=row_id if btn.append_id else None,
                                                              user_signature=self.user_signature
                                                                 if btn.append_signature else None,
@@ -685,12 +701,16 @@ class ActionButton:
                  url,
                  text,
                  icon='fa-calendar',
+                 additional_classes=None,
+                 message=None,
                  append_id=False,
                  append_signature=False,
                  append_page=False):
         self.url = url
         self.text = text
         self.icon = icon
+        self.additional_classes = None
+        self.message = None
         self.append_id = append_id
         self.append_signature = append_signature
         self.append_page = append_page
