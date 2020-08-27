@@ -3,6 +3,7 @@ from functools import reduce
 from yatl.helpers import DIV, TABLE, TBODY, TR, TD, TH, A, SPAN, I, THEAD, P, TAG, INPUT, SCRIPT, XML
 from pydal.objects import FieldVirtual
 from py4web import request, URL, response, redirect
+from py4web.core import Reloader
 from py4web.utils.form import Form, FormStyleDefault
 from .. import settings
 from ..models import db
@@ -45,6 +46,32 @@ def set_storage_values(user_signature, values_dict):
                         json.dumps(values_dict),
                         secret=settings.SESSION_SECRET_KEY,
                         max_age=max_age)
+
+
+def parse_route(request):
+    """
+    -- play with this as a possible way to get the route - but below works
+
+    f = '/'.join(__file__.split('/')[1:])
+    for rt in (Reloader.ROUTES):
+        if rt['filename'] == f:
+            print(rt)
+    print(f)
+    """
+    application = request.environ['bottle.request.ext.app_name']
+    url_parts = request.path.split('/')
+
+    rule_out = ''
+    for part in url_parts:
+        if part == '':
+            continue
+        elif part == application:
+            continue
+        else:
+            rule_out = part
+            break
+
+    return rule_out
 
 
 class SimpleTable:
@@ -93,7 +120,7 @@ class SimpleTable:
         :param post_action_buttons: list of action_button instances to include after the standard action buttons
         """
         self.query_parms = request.params
-        self.endpoint = request.route.call.__name__
+        self.endpoint = parse_route(request)
 
         self.search_form = search_form
 
@@ -464,7 +491,7 @@ class SimpleTable:
 
                 _thead.append(_th)
 
-        if self.editable or self.deletable:
+        if self.details or self.editable or self.deletable:
             _thead.append(TH('ACTIONS', _style='text-align: center; width: 1px; white-space: nowrap;'))
 
         return _thead
@@ -488,8 +515,8 @@ class SimpleTable:
             field_value = row[field.name]
         if field.type == 'date':
             _td = TD(XML("<script>\ndocument.write("
-                       "moment(\"%s\").format('L'));\n</script>" % field_value) \
-                       if row and field and field_value else '',
+                         "moment(\"%s\").format('L'));\n</script>" % field_value) \
+                         if row and field and field_value else '',
                      _class='has-text-centered')
         elif field.type == 'boolean':
             #  True/False - only show on True, blank for False
@@ -537,9 +564,9 @@ class SimpleTable:
                                                              message=btn.message,
                                                              row_id=row_id if btn.append_id else None,
                                                              user_signature=self.user_signature
-                                                                if btn.append_signature else None,
+                                                             if btn.append_signature else None,
                                                              page=self.current_page_number
-                                                                if btn.append_page else None))
+                                                             if btn.append_page else None))
                 if self.details and self.details != '':
                     if isinstance(self.details, str):
                         details_url = self.details
@@ -577,9 +604,9 @@ class SimpleTable:
                                                              message=btn.message,
                                                              row_id=row_id if btn.append_id else None,
                                                              user_signature=self.user_signature
-                                                                if btn.append_signature else None,
+                                                             if btn.append_signature else None,
                                                              page=self.current_page_number
-                                                                if btn.append_page else None))
+                                                             if btn.append_page else None))
                 _tr.append(_td)
             _tbody.append(_tr)
 
@@ -709,8 +736,8 @@ class ActionButton:
         self.url = url
         self.text = text
         self.icon = icon
-        self.additional_classes = None
-        self.message = None
+        self.additional_classes = additional_classes
+        self.message = message
         self.append_id = append_id
         self.append_signature = append_signature
         self.append_page = append_page
