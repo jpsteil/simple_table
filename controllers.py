@@ -25,7 +25,7 @@ def index():
 
 @action('zip_codes', method=['POST', 'GET'])
 @action('zip_codes/<action>/<tablename>/<record_id>', method=['POST', 'GET'])
-@action.uses(session, db, auth, 'libs/simple_table.html')
+@action.uses(session, db, auth, 'simple_table.html')
 def zip_codes(action=None, tablename=None, record_id=None):
     fields = [db.zip_code.id,
               db.zip_code.zip_code,
@@ -259,18 +259,18 @@ def FormStyleSimpleTable(table, vars, errors, readonly, deletable):
 
 @action('companies', method=['POST', 'GET'])
 @action('companies/<action>/<tablename>/<record_id>', method=['POST', 'GET'])
-@action.uses(session, db, auth, 'libs/simple_table.html')
+@action.uses(session, db, auth, 'simple_table.html')
 def companies(action=None, tablename=None, record_id=None):
     #  check session to see if we've saved a default value
     user_signature = get_signature()
     search_filter = get_storage_value(user_signature, 'search_filter', None)
 
-    search_form = Form([Field('search', length=50, default=search_filter, _placeholder='...search text...',
+    search_form = Form([Field('search_filter', length=50, default=search_filter, _placeholder='...search text...',
                               _title='Enter search text and click on Filter')],
                        keep_values=True, formstyle=FormStyleSimpleTable, )
 
     if search_form.accepted:
-        search_filter = search_form.vars['search']
+        search_filter = search_form.vars['search_filter']
 
     queries = [(db.company.id > 0)]
     if search_filter:
@@ -295,18 +295,18 @@ def companies(action=None, tablename=None, record_id=None):
 
 @action('departments', method=['POST', 'GET'])
 @action('departments/<action>/<tablename>/<record_id>', method=['POST', 'GET'])
-@action.uses(session, db, auth, 'libs/simple_table.html')
+@action.uses(session, db, auth, 'simple_table.html')
 def departments(action=None, tablename=None, record_id=None):
     #  check session to see if we've saved a default value
     user_signature = get_signature()
     search_filter = get_storage_value(user_signature, 'search_filter', None)
 
-    search_form = Form([Field('search', length=50, default=search_filter, _placeholder='...search text...',
+    search_form = Form([Field('search_filter', length=50, default=search_filter, _placeholder='...search text...',
                               _title='Enter search text and click on Filter')],
                        keep_values=True, formstyle=FormStyleSimpleTable, )
 
     if search_form.accepted:
-        search_filter = search_form.vars['search']
+        search_filter = search_form.vars['search_filter']
 
     queries = [(db.department.id > 0)]
     if search_filter:
@@ -331,7 +331,7 @@ def departments(action=None, tablename=None, record_id=None):
 
 @action('employees', method=['POST', 'GET'])
 @action('employees/<action>/<tablename>/<record_id>', method=['POST', 'GET'])
-@action.uses(session, db, auth, 'libs/simple_table.html')
+@action.uses(session, db, auth, 'simple_table.html')
 def employees(action=None, tablename=None, record_id=None):
     #  check session to see if we've saved a default value
     user_signature = get_signature()
@@ -339,24 +339,22 @@ def employees(action=None, tablename=None, record_id=None):
     department_filter = get_storage_value(user_signature, 'department_filter', None)
     search_filter = get_storage_value(user_signature, 'search_filter', None)
 
-    x = db.employee(347)
-
-    search_form = Form([Field('company', 'reference company',
+    search_form = Form([Field('company_filter', 'reference company',
                               requires=db.employee.company.requires,
                               default=company_filter,
                               _title='Filter by Company'),
-                        Field('department', 'reference department',
+                        Field('department_filter', 'reference department',
                               requires=db.employee.department.requires,
                               default=department_filter,
                               _title='Filter by Department'),
-                        Field('search', length=50, default=search_filter, _placeholder='...search text...',
+                        Field('search_filter', length=50, default=search_filter, _placeholder='...search text...',
                               _title='Enter search text and click on Filter')],
                        keep_values=True, formstyle=FormStyleSimpleTable, )
 
     if search_form.accepted:
-        company_filter = search_form.vars['company']
-        department_filter = search_form.vars['department']
-        search_filter = search_form.vars['search']
+        company_filter = search_form.vars['company_filter']
+        department_filter = search_form.vars['department_filter']
+        search_filter = search_form.vars['search_filter']
 
     queries = [(db.employee.id > 0)]
     if search_filter:

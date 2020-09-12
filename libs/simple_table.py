@@ -26,8 +26,21 @@ def get_signature():
 
 
 def get_storage_value(user_signature, filter_name, default_value=None):
-    storage_value = default_value
-    if user_signature and user_signature in request.cookies:
+    """
+    retrieve a value from storage
+
+    first check the query parms to see if one is passed
+
+    if not in query parms check the user signature cookie for the value
+
+    :param user_signature: user signature
+    :param filter_name: name of the filter value you want to retrieve
+    :param default_value: the default value if value hasn't been stored
+    :return: the value of the filter that was either in the query parms or user signature cookie
+    """
+    storage_value = request.query.get(filter_name, default_value)
+
+    if storage_value == default_value and user_signature and user_signature in request.cookies:
         cookie = json.loads(request.get_cookie(user_signature,
                                                default={},
                                                secret=settings.SESSION_SECRET_KEY))
@@ -194,6 +207,17 @@ class SimpleTable:
                     if field.table != self.tablename:
                         self.use_tablename = True  # tablename is included in 'row' - need it to retrieve fields
 
+            #  find the primary key of the primary table
+            pt = db[self.tablename]
+            key_is_missing = False
+            for field in self.fields:
+                if field.table._tablename == pt._tablename and field.name == pt._id:
+                    key_is_missing = True
+            if key_is_missing:
+                #  primary key wasn't included, add it and set show_id to False so it doesn't display
+                self.fields.append(pt._id)
+                self.show_id = False
+
             self.headings = []
             if headings:
                 if isinstance(headings, list):
@@ -301,6 +325,7 @@ class SimpleTable:
                 #  a list of dal fields or a single pydal field, treat the same
                 if isinstance(sort_order, str):
                     #  a string
+                    print(sort_order)
                     tablename, fieldname = sort_order.split('.')
                     orderby_expression = [db[tablename][fieldname]]
                 else:
@@ -515,8 +540,8 @@ class SimpleTable:
             field_value = row[field.name]
         if field.type == 'date':
             _td = TD(XML("<script>\ndocument.write("
-                         "moment(\"%s\").format('L'));\n</script>" % field_value) \
-                         if row and field and field_value else '',
+                       "moment(\"%s\").format('L'));\n</script>" % field_value) \
+                       if row and field and field_value else '',
                      _class='has-text-centered')
         elif field.type == 'boolean':
             #  True/False - only show on True, blank for False
@@ -564,9 +589,9 @@ class SimpleTable:
                                                              message=btn.message,
                                                              row_id=row_id if btn.append_id else None,
                                                              user_signature=self.user_signature
-                                                             if btn.append_signature else None,
+                                                                if btn.append_signature else None,
                                                              page=self.current_page_number
-                                                             if btn.append_page else None))
+                                                                if btn.append_page else None))
                 if self.details and self.details != '':
                     if isinstance(self.details, str):
                         details_url = self.details
@@ -604,9 +629,9 @@ class SimpleTable:
                                                              message=btn.message,
                                                              row_id=row_id if btn.append_id else None,
                                                              user_signature=self.user_signature
-                                                             if btn.append_signature else None,
+                                                                if btn.append_signature else None,
                                                              page=self.current_page_number
-                                                             if btn.append_page else None))
+                                                                if btn.append_page else None))
                 _tr.append(_td)
             _tbody.append(_tr)
 
@@ -698,6 +723,14 @@ class SimpleTable:
         elif self.action in ['new', 'details', 'edit']:
             return self.form
 
+    def data(self):
+        """
+        get the record that is being edited / displayed
+
+        :return: DAL record of the record being edited
+        """
+        return db[self.tablename](self.record_id) if self.tablename and self.record_id else None
+
 
 def FormStyleSimpleTable(table, vars, errors, readonly, deletable):
     classes = {
@@ -715,7 +748,7 @@ def FormStyleSimpleTable(table, vars, errors, readonly, deletable):
         "input[type=radio]": "radio",
         "input[type=checkbox]": "checkbox",
         "input[type=submit]": "button",
-        "input[type=password]": "password",
+        "input[type=password]": "input password",
         "input[type=file]": "file",
         "select": "control select",
         "textarea": "textarea",
