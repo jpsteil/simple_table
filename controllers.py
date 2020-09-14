@@ -6,7 +6,7 @@ from py4web.utils.form import Form, FormStyleBulma, FormStyleDefault
 from pydal.validators import IS_NULL_OR, IS_IN_SET
 from .common import db, session, auth, unauthenticated, GRID_COMMON
 from .libs.datatables import DataTablesField, DataTablesRequest, DataTablesResponse
-from py4web.utils.grid import Grid, get_grid_key, get_storage_value, ActionButton
+from py4web.utils.grid import Grid, get_storage_key, get_storage_value, ActionButton
 
 
 @action('index', method=['POST', 'GET'])
@@ -28,10 +28,10 @@ def zip_codes(action=None, tablename=None, record_id=None):
               db.zip_code.primary_city]
 
     #  check session to see if we've saved a default value
-    grid_key = get_grid_key()
-    search_state = get_storage_value(grid_key, 'search_state', common_settings=GRID_COMMON)
-    search_type = get_storage_value(grid_key, 'search_type', common_settings=GRID_COMMON)
-    search_filter = get_storage_value(grid_key, 'search_filter', common_settings=GRID_COMMON)
+    storage_key = get_storage_key()
+    search_state = get_storage_value(storage_key, 'search_state', common_settings=GRID_COMMON)
+    search_type = get_storage_value(storage_key, 'search_type', common_settings=GRID_COMMON)
+    search_filter = get_storage_value(storage_key, 'search_filter', common_settings=GRID_COMMON)
 
     #  build the search form
     zip_type_requires = IS_NULL_OR(IS_IN_SET([x.zip_type for x in db(db.zip_code.id > 0).select(db.zip_code.zip_type,
@@ -94,17 +94,17 @@ def zip_codes(action=None, tablename=None, record_id=None):
                 details=True,
                 editable=True,
                 deletable=True,
-                grid_key=grid_key,
+                storage_key=storage_key,
                 requires=requires,
                 pre_action_buttons=[ActionButton(URL('copy'), 'Copy',
                                                  icon='fa-copy',
                                                  append_id=True,
-                                                 append_grid_key=True,
+                                                 append_storage_key=True,
                                                  append_page=True),
                                     ActionButton(URL('to_excel'), 'Export',
                                                  icon='fa-file-excel',
                                                  append_id=True,
-                                                 append_grid_key=True,
+                                                 append_storage_key=True,
                                                  append_page=True)])
 
     return dict(grid=grid)
@@ -224,13 +224,13 @@ def FormStyleGrid(table, vars, errors, readonly, deletable):
 @action('companies', method=['POST', 'GET'])
 @action('companies/<action>/<tablename>/<record_id>', method=['POST', 'GET'])
 @action.uses(session, db, auth, 'grid.html')
-def companies(action=None, tablename=None, record_id=None):
+def companies(**kwargs):
     #  check session to see if we've saved a default value
-    grid_key = get_grid_key()
-    search_filter = get_storage_value(grid_key, 'search_filter', common_settings=GRID_COMMON)
+    storage_key = get_storage_key()
+    search_filter = get_storage_value(storage_key, 'search_filter', common_settings=GRID_COMMON)
 
     search_form = Form([Field('search_filter', length=50, default=search_filter, _placeholder='...search text...',
-                              _title='Enter search text and click on Filter')],
+                              _title='Enter search text and click on %s' % GRID_COMMON.param.search_button_text)],
                        keep_values=True, formstyle=FormStyleGrid)
 
     if search_form.accepted:
@@ -251,7 +251,7 @@ def companies(action=None, tablename=None, record_id=None):
                 details=True,
                 editable=True,
                 deletable=True,
-                grid_key=grid_key)
+                storage_key=storage_key)
 
     return dict(grid=grid)
 
@@ -261,8 +261,8 @@ def companies(action=None, tablename=None, record_id=None):
 @action.uses(session, db, auth, 'grid.html')
 def departments(action=None, tablename=None, record_id=None):
     #  check session to see if we've saved a default value
-    grid_key = get_grid_key()
-    search_filter = get_storage_value(grid_key, 'search_filter', common_settings=GRID_COMMON)
+    storage_key = get_storage_key()
+    search_filter = get_storage_value(storage_key, 'search_filter', common_settings=GRID_COMMON)
 
     search_form = Form([Field('search_filter', length=50, default=search_filter, _placeholder='...search text...',
                               _title='Enter search text and click on Filter')],
@@ -286,7 +286,7 @@ def departments(action=None, tablename=None, record_id=None):
                 details=True,
                 editable=True,
                 deletable=True,
-                grid_key=grid_key)
+                storage_key=storage_key)
 
     return dict(grid=grid)
 
@@ -296,10 +296,10 @@ def departments(action=None, tablename=None, record_id=None):
 @action.uses(session, db, auth, 'grid.html')
 def employees(action=None, tablename=None, record_id=None):
     #  check session to see if we've saved a default value
-    grid_key = get_grid_key()
-    company_filter = get_storage_value(grid_key, 'company_filter', common_settings=GRID_COMMON)
-    department_filter = get_storage_value(grid_key, 'department_filter', common_settings=GRID_COMMON)
-    search_filter = get_storage_value(grid_key, 'search_filter', common_settings=GRID_COMMON)
+    storage_key = get_storage_key()
+    company_filter = get_storage_value(storage_key, 'company_filter', common_settings=GRID_COMMON)
+    department_filter = get_storage_value(storage_key, 'department_filter', common_settings=GRID_COMMON)
+    search_filter = get_storage_value(storage_key, 'search_filter', common_settings=GRID_COMMON)
 
     search_form = Form([Field('company_filter', 'reference company',
                               requires=db.employee.company.requires,
@@ -351,7 +351,7 @@ def employees(action=None, tablename=None, record_id=None):
                 details=True,
                 editable=True,
                 deletable=True,
-                grid_key=grid_key)
+                storage_key=storage_key)
 
     return dict(grid=grid)
 

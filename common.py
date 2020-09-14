@@ -12,8 +12,7 @@ from py4web.utils.downloader import downloader
 from py4web.utils.tags import Tags
 from py4web.utils.factories import ActionFactory
 from py4web.utils.form import FormStyleDefault, FormStyleBulma
-from py4web.utils.grid import GridClassStyleBulma
-from py4web.utils.param import Param
+from py4web.utils.grid import GridDefaults, GridClassStyleBulma
 
 from . import settings
 
@@ -49,7 +48,7 @@ elif settings.SESSION_TYPE == "redis":
     host, port = settings.REDIS_SERVER.split(":")
     # for more options: https://github.com/andymccurdy/redis-py/blob/master/redis/client.py
     conn = redis.Redis(host=host, port=int(port))
-    conn.set = lambda k, v, e, cs=conn.set, ct=conn.ttl: cs(k, v, ct(k)) if ct(k) >= 0 else cs(k, v, e) 
+    conn.set = lambda k, v, e, cs=conn.set, ct=conn.ttl: cs(k, v, ct(k)) if ct(k) >= 0 else cs(k, v, e)
     session = Session(secret=settings.SESSION_SECRET_KEY, storage=conn)
 elif settings.SESSION_TYPE == "memcache":
     import memcache, time
@@ -137,7 +136,6 @@ if settings.USE_CELERY:
         "apps.%s.tasks" % settings.APP_NAME, broker=settings.CELERY_BROKER
     )
 
-
 # we enable auth, which requres sessions, T, db and we make T available to
 # the template, although we recommend client-side translations instead
 auth.enable(uses=(session, T, db), env=dict(T=T))
@@ -145,11 +143,7 @@ auth.enable(uses=(session, T, db), env=dict(T=T))
 unauthenticated = ActionFactory(db, session, T, auth)
 authenticated = ActionFactory(db, session, T, auth.user)
 
-GRID_COMMON = Param(db=db,
-                    secret=settings.SESSION_SECRET_KEY,
-                    rows_per_page=15,
-                    grid_key_max_age=3600,
-                    search_button_text='Filter',
-                    include_action_button_text=True,
-                    formstyle=FormStyleBulma,
-                    grid_class_style=GridClassStyleBulma)
+GRID_COMMON = GridDefaults(db=db,
+                           secret=settings.SESSION_SECRET_KEY,
+                           formstyle=FormStyleBulma,
+                           grid_class_style=GridClassStyleBulma)
