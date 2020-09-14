@@ -1,31 +1,24 @@
 import json
-import pprint
 from functools import reduce
 
 from py4web import action, request, redirect, URL, Field
 from py4web.utils.form import Form, FormStyleBulma, FormStyleDefault
-from py4web.utils.grid import Grid
 from pydal.validators import IS_NULL_OR, IS_IN_SET
-from .common import db, session, auth, unauthenticated
+from .common import db, session, auth, unauthenticated, GRID_COMMON
 from .libs.datatables import DataTablesField, DataTablesRequest, DataTablesResponse
-from .libs.simple_table import SimpleTable, get_signature, get_storage_value, ActionButton
-from py4web.utils.publisher import Publisher, ALLOW_ALL_POLICY  # for ajax_grid
-
-#  exposes services necessary to access the db.thing via ajax
-publisher = Publisher(db, policy=ALLOW_ALL_POLICY)
+from py4web.utils.grid import Grid, get_grid_key, get_storage_value, ActionButton
 
 
 @action('index', method=['POST', 'GET'])
 @action('/', method=['POST', 'GET'])
 @action.uses(session, db, auth, 'index.html')
 def index():
-
     return dict()
 
 
 @action('zip_codes', method=['POST', 'GET'])
 @action('zip_codes/<action>/<tablename>/<record_id>', method=['POST', 'GET'])
-@action.uses(session, db, auth, 'simple_table.html')
+@action.uses(session, db, auth, 'grid.html')
 def zip_codes(action=None, tablename=None, record_id=None):
     fields = [db.zip_code.id,
               db.zip_code.zip_code,
@@ -35,10 +28,10 @@ def zip_codes(action=None, tablename=None, record_id=None):
               db.zip_code.primary_city]
 
     #  check session to see if we've saved a default value
-    user_signature = get_signature()
-    search_state = get_storage_value(user_signature, 'search_state', None)
-    search_type = get_storage_value(user_signature, 'search_type', None)
-    search_filter = get_storage_value(user_signature, 'search_filter', None)
+    grid_key = get_grid_key()
+    search_state = get_storage_value(grid_key, 'search_state', common_settings=GRID_COMMON)
+    search_type = get_storage_value(grid_key, 'search_type', common_settings=GRID_COMMON)
+    search_filter = get_storage_value(grid_key, 'search_filter', common_settings=GRID_COMMON)
 
     #  build the search form
     zip_type_requires = IS_NULL_OR(IS_IN_SET([x.zip_type for x in db(db.zip_code.id > 0).select(db.zip_code.zip_type,
@@ -55,7 +48,7 @@ def zip_codes(action=None, tablename=None, record_id=None):
                               _title='Select Filter by ZIP Type'),
                         Field('search', length=50, default=search_filter, _placeholder='...search text...',
                               _title='Enter search text and click on Filter')],
-                       keep_values=True, formstyle=FormStyleSimpleTable, )
+                       keep_values=True, formstyle=FormStyleGrid, )
 
     if search_form.accepted:
         search_state = search_form.vars['state']
@@ -89,54 +82,32 @@ def zip_codes(action=None, tablename=None, record_id=None):
                 'zip_code.state': zip_state_requires,
                 'zip_code.timezone': zip_timezone_requires}
 
-    grid = SimpleTable(queries,
-                       fields=fields,
-                       search_form=search_form,
-                       storage_values=dict(search_state=search_state,
-                                           search_type=search_type,
-                                           search_filter=search_filter),
-                       orderby=orderby,
-                       create=True,
-                       details=True,
-                       editable=True,
-                       deletable=True,
-                       search_button='Filter',
-                       user_signature=user_signature,
-                       requires=requires,
-                       pre_action_buttons=[ActionButton(URL('copy'), 'Copy',
-                                                        icon='fa-copy',
-                                                        append_id=True,
-                                                        append_signature=True,
-                                                        append_page=True),
-                                           ActionButton(URL('to_excel'), 'Export',
-                                                        icon='fa-file-excel',
-                                                        append_id=True,
-                                                        append_signature=True,
-                                                        append_page=True)])
-
-    return dict(grid=grid)
-
-
-@action('grid', method=['POST', 'GET'])
-@action.uses(session, db, auth, 'grid.html')
-def grid():
-    fields = ['id',
-              'zip_code',
-              'zip_type',
-              'state',
-              'county',
-              'primary_city']
-
-    grid = Grid(db.zip_code,
+    grid = Grid(GRID_COMMON,
+                queries,
                 fields=fields,
+                search_form=search_form,
+                storage_values=dict(search_state=search_state,
+                                    search_type=search_type,
+                                    search_filter=search_filter),
+                orderby=orderby,
                 create=True,
+                details=True,
                 editable=True,
                 deletable=True,
-                limit=14)
+                grid_key=grid_key,
+                requires=requires,
+                pre_action_buttons=[ActionButton(URL('copy'), 'Copy',
+                                                 icon='fa-copy',
+                                                 append_id=True,
+                                                 append_grid_key=True,
+                                                 append_page=True),
+                                    ActionButton(URL('to_excel'), 'Export',
+                                                 icon='fa-file-excel',
+                                                 append_id=True,
+                                                 append_grid_key=True,
+                                                 append_page=True)])
 
-    grid.labels = {x: x.replace('_', ' ').upper() for x in fields}
-
-    return dict(form=grid.make())
+    return dict(grid=grid)
 
 
 @unauthenticated
@@ -211,7 +182,7 @@ def zip_code(zip_code_id):
     db.zip_code.timezone.requires = IS_IN_SET(
         [x.timezone for x in db(db.zip_code.id > 0).select(db.zip_code.timezone, distinct=True)])
 
-    form = Form(db.zip_code, record=zip_code_id, formstyle=FormStyleSimpleTable)
+    form = Form(db.zip_code, record=zip_code_id, formstyle=FormStyleGrid)
 
     if form.accepted:
         redirect(URL('datatables'))
@@ -220,20 +191,13 @@ def zip_code(zip_code_id):
 
 
 @action('zip_code/delete/<zip_code_id>', method=['GET', 'POST'])
-@action.uses(session, db, auth, 'simple_table.html')
+@action.uses(session, db, auth, 'grid.html')
 def zip_code_delete(zip_code_id):
     result = db(db.zip_code.id == zip_code_id).delete()
     redirect(URL('datatables'))
 
 
-# exposed as /examples/ajaxgrid
-@action("ajax_grid")
-@action.uses("ajax_grid.html")
-def ajax_grid():
-    return dict(grid=publisher.grid(db.zip_code))
-
-
-def FormStyleSimpleTable(table, vars, errors, readonly, deletable):
+def FormStyleGrid(table, vars, errors, readonly, deletable):
     classes = {
         "outer": "field",
         "inner": "control",
@@ -259,15 +223,15 @@ def FormStyleSimpleTable(table, vars, errors, readonly, deletable):
 
 @action('companies', method=['POST', 'GET'])
 @action('companies/<action>/<tablename>/<record_id>', method=['POST', 'GET'])
-@action.uses(session, db, auth, 'simple_table.html')
+@action.uses(session, db, auth, 'grid.html')
 def companies(action=None, tablename=None, record_id=None):
     #  check session to see if we've saved a default value
-    user_signature = get_signature()
-    search_filter = get_storage_value(user_signature, 'search_filter', None)
+    grid_key = get_grid_key()
+    search_filter = get_storage_value(grid_key, 'search_filter', common_settings=GRID_COMMON)
 
     search_form = Form([Field('search_filter', length=50, default=search_filter, _placeholder='...search text...',
                               _title='Enter search text and click on Filter')],
-                       keep_values=True, formstyle=FormStyleSimpleTable, )
+                       keep_values=True, formstyle=FormStyleGrid)
 
     if search_form.accepted:
         search_filter = search_form.vars['search_filter']
@@ -278,32 +242,31 @@ def companies(action=None, tablename=None, record_id=None):
 
     orderby = [db.company.name]
 
-    grid = SimpleTable(queries,
-                       search_form=search_form,
-                       storage_values=dict(search_filter=search_filter),
-                       orderby=orderby,
-                       create=True,
-                       details=True,
-                       editable=True,
-                       deletable=True,
-                       search_button='Filter',
-                       user_signature=user_signature,
-                       include_action_button_text=True)
+    grid = Grid(GRID_COMMON,
+                queries,
+                search_form=search_form,
+                storage_values=dict(search_filter=search_filter),
+                orderby=orderby,
+                create=True,
+                details=True,
+                editable=True,
+                deletable=True,
+                grid_key=grid_key)
 
     return dict(grid=grid)
 
 
 @action('departments', method=['POST', 'GET'])
 @action('departments/<action>/<tablename>/<record_id>', method=['POST', 'GET'])
-@action.uses(session, db, auth, 'simple_table.html')
+@action.uses(session, db, auth, 'grid.html')
 def departments(action=None, tablename=None, record_id=None):
     #  check session to see if we've saved a default value
-    user_signature = get_signature()
-    search_filter = get_storage_value(user_signature, 'search_filter', None)
+    grid_key = get_grid_key()
+    search_filter = get_storage_value(grid_key, 'search_filter', common_settings=GRID_COMMON)
 
     search_form = Form([Field('search_filter', length=50, default=search_filter, _placeholder='...search text...',
                               _title='Enter search text and click on Filter')],
-                       keep_values=True, formstyle=FormStyleSimpleTable, )
+                       keep_values=True, formstyle=FormStyleGrid, )
 
     if search_form.accepted:
         search_filter = search_form.vars['search_filter']
@@ -314,30 +277,29 @@ def departments(action=None, tablename=None, record_id=None):
 
     orderby = [db.department.name]
 
-    grid = SimpleTable(queries,
-                       search_form=search_form,
-                       storage_values=dict(search_filter=search_filter),
-                       orderby=orderby,
-                       create=True,
-                       details=True,
-                       editable=True,
-                       deletable=True,
-                       search_button='Filter',
-                       user_signature=user_signature,
-                       include_action_button_text=True)
+    grid = Grid(GRID_COMMON,
+                queries,
+                search_form=search_form,
+                storage_values=dict(search_filter=search_filter),
+                orderby=orderby,
+                create=True,
+                details=True,
+                editable=True,
+                deletable=True,
+                grid_key=grid_key)
 
     return dict(grid=grid)
 
 
 @action('employees', method=['POST', 'GET'])
 @action('employees/<action>/<tablename>/<record_id>', method=['POST', 'GET'])
-@action.uses(session, db, auth, 'simple_table.html')
+@action.uses(session, db, auth, 'grid.html')
 def employees(action=None, tablename=None, record_id=None):
     #  check session to see if we've saved a default value
-    user_signature = get_signature()
-    company_filter = get_storage_value(user_signature, 'company_filter', None)
-    department_filter = get_storage_value(user_signature, 'department_filter', None)
-    search_filter = get_storage_value(user_signature, 'search_filter', None)
+    grid_key = get_grid_key()
+    company_filter = get_storage_value(grid_key, 'company_filter', common_settings=GRID_COMMON)
+    department_filter = get_storage_value(grid_key, 'department_filter', common_settings=GRID_COMMON)
+    search_filter = get_storage_value(grid_key, 'search_filter', common_settings=GRID_COMMON)
 
     search_form = Form([Field('company_filter', 'reference company',
                               requires=db.employee.company.requires,
@@ -349,7 +311,7 @@ def employees(action=None, tablename=None, record_id=None):
                               _title='Filter by Department'),
                         Field('search_filter', length=50, default=search_filter, _placeholder='...search text...',
                               _title='Enter search text and click on Filter')],
-                       keep_values=True, formstyle=FormStyleSimpleTable, )
+                       keep_values=True, formstyle=FormStyleGrid)
 
     if search_form.accepted:
         company_filter = search_form.vars['company_filter']
@@ -375,21 +337,92 @@ def employees(action=None, tablename=None, record_id=None):
               db.employee.supervisor,
               db.employee.active]
 
-    grid = SimpleTable(queries,
-                       search_form=search_form,
-                       fields=fields,
-                       left=[db.company.on(db.employee.company==db.company.id),
-                             db.department.on(db.employee.department==db.department.id)],
-                       storage_values=dict(company_filter=company_filter,
-                                           department_filter=department_filter,
-                                           search_filter=search_filter),
-                       orderby=orderby,
-                       create=True,
-                       details=True,
-                       editable=True,
-                       deletable=True,
-                       search_button='Filter',
-                       user_signature=user_signature,
-                       include_action_button_text=True)
+    grid = Grid(GRID_COMMON,
+                queries,
+                search_form=search_form,
+                fields=fields,
+                left=[db.company.on(db.employee.company == db.company.id),
+                      db.department.on(db.employee.department == db.department.id)],
+                storage_values=dict(company_filter=company_filter,
+                                    department_filter=department_filter,
+                                    search_filter=search_filter),
+                orderby=orderby,
+                create=True,
+                details=True,
+                editable=True,
+                deletable=True,
+                grid_key=grid_key)
 
     return dict(grid=grid)
+
+
+@action('documentation/index', method=['GET'])
+@action.uses(session, db, auth, 'documentation/index.html')
+def documentation():
+    return dict()
+
+
+@action('documentation/overview', method=['GET'])
+@action.uses(session, db, auth, 'documentation/overview.html')
+def overview():
+    return dict()
+
+
+@action('documentation/simple_example', method=['GET'])
+@action.uses(session, db, auth, 'documentation/simple_example.html')
+def simple_example():
+    return dict()
+
+
+@action('documentation/grid_signature', method=['GET'])
+@action.uses(session, db, auth, 'documentation/grid_signature.html')
+def grid_signature():
+    return dict()
+
+
+@action('documentation/common_grid_settings', method=['GET'])
+@action.uses(session, db, auth, 'documentation/common_grid_settings.html')
+def common_grid_settings():
+    return dict()
+
+
+@action('documentation/searching_filtering', method=['GET'])
+@action.uses(session, db, auth, 'documentation/searching_filtering.html')
+def searching_filtering():
+    return dict()
+
+
+@action('documentation/crud', method=['GET'])
+@action.uses(session, db, auth, 'documentation/crud.html')
+def crud():
+    return dict()
+
+
+@action('documentation/templates', method=['GET'])
+@action.uses(session, db, auth, 'documentation/templates.html')
+def templates():
+    return dict()
+
+
+@action('documentation/customizing_style', method=['GET'])
+@action.uses(session, db, auth, 'documentation/customizing_style.html')
+def customizing_style():
+    return dict()
+
+
+@action('documentation/custom_action_buttons', method=['GET'])
+@action.uses(session, db, auth, 'documentation/custom_action_buttons.html')
+def custom_action_buttons():
+    return dict()
+
+
+@action('documentation/reference_fields', method=['GET'])
+@action.uses(session, db, auth, 'documentation/reference_fields.html')
+def reference_fields():
+    return dict()
+
+
+@action('documentation/examples', method=['GET'])
+@action.uses(session, db, auth, 'documentation/examples.html')
+def examples():
+    return dict()

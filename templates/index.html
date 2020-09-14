@@ -1,8 +1,5 @@
 [[extend 'layout.html']]
 <style type="text/css">
-    section.section {
-        padding-bottom: 0px;
-    }
     .example {
         padding-bottom: .5rem;
     }
@@ -22,16 +19,20 @@
     </p>
     <section class="section">
         <div class="container">
-            <h1 class="title">Simple Table Examples</h1>
+            <h1 class="title">py4web HTML Grid Examples</h1>
+            <p>The HTML Grid documentation is a work in progress.
+                Click [[=A("here", _href=URL('documentation')) ]].</p>
             <div class="example">
                 <a class="" href="[[=URL('zip_codes')]]">ZIP Code database</a>
                 <p>Simple CRUD over 40,000 record table.  Highlight basic implementation of simple_table.</p>
-                <p class="feature">- Click column heads for sorting - click again for DESC</p>
-                <p class="feature">- Pagination control</p>
-                <p class="feature">- Filter Form - you supply and control filtering</p>
-                <p class="feature">- Action Buttons - with or without text</p>
-                <p class="feature">- Full CRUD with Delete Confirmation</p>
-                <p class="feature">- Pre Action buttons Copy and Export (dead links - shows capability for custom buttons)</p>
+                <ul>
+                    <li>Click column heads for sorting - click again for DESC</li>
+                    <li>Pagination control</li>
+                    <li>Filter Form - you supply and control filtering</li>
+                    <li>Action Buttons - with or without text</li>
+                    <li>Full CRUD with Delete Confirmation</li>
+                    <li>Pre Action buttons Copy and Export (dead links - shows capability for custom buttons)</li>
+                </ul>
             </div>
             <div class="example">
                 <a href="[[=URL('companies')]]">Companies</a>
@@ -44,31 +45,22 @@
             <div class="example">
                 <a href="[[=URL('employees')]]">Employees</a>
                 <p>Employees CRUD - Shows LEFT OUTER JOINs to bring in foreign key descriptive fields.</p>
-                <p class="feature">- Fitler dropdowns from alternate tables</p>
-                <p class="feature">- Search filter over concatenated table fields</p>
-                <p class="feature">- Auto date formatting based on browser locale</p>
-                <p class="feature">- Display boolean fields with font-awesome checkbox</p>
-                <p class="feature">- LEFT JOIN to control display of foreign keys</p>
+                <ul>
+                    <li>Filter dropdowns from alternate tables</li>
+                    <li>Search filter over concatenated table fields</li>
+                    <li>Auto date formatting based on browser locale</li>
+                    <li>Display boolean fields with font-awesome checkbox</li>
+                    <li>LEFT JOIN to control display of foreign keys</li>
+                </ul>
             </div>
         </div>
     </section>
     <section class="section">
         <div class="container">
-            <h1 class="title">HTML Grid Examples</h1>
-            <div class="example">
-                <a href="[[=URL('grid')]]">HTML Grid</a>
-                <p>py4web HTML grid ZIP Code CRUD</p>
-            </div>
-        </div>
-    </section>
-    <section class="section">
-        <div class="container">
-            <h1 class="title">HTML Grid Examples</h1>
+            <h1 class="title">Datatables.net Grid Examples</h1>
             <div class="example">
                 <a href="[[=URL('datatables')]]">Datatables.net</a>
                 <p>Datatables.net ZIP Code CRUD</p>
-            </div>
-        </ul>
             </div>
         </div>
     </section>

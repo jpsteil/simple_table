@@ -73,6 +73,3 @@ try:
     from . settings_private import *
 except:
     pass
-
-SIMPLE_TABLE_ROWS_PER_PAGE = 15
-SIMPLE_TABLE_SIGNATURE_MAX_AGE = 3600

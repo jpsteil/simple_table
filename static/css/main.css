@@ -1,3 +1,12 @@
-figure {
-    color: #8FBECE;
+.section {
+    padding: 1rem 1.25rem;
+}
+
+ul li {
+    list-style: disc;
+    list-style-position: inside;
+}
+
+p {
+    padding-bottom: 1rem;
 }

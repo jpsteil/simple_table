@@ -1,0 +1,75 @@
+[[extend 'layout.html']]
+<div class="container" style="padding-top: 1em;">
+    <div class="title">HTML Grid Documentation</div>
+    <div class="subtitle">SIMPLE EXAMPLE</div>
+    <p>
+        The following builds a fully functioning CRUD grid over the companies table which includes sorting,
+        filtering and pagination.  Setting the grid defaults for the application in common.py is done once for
+        the application.
+    </p>
+    <p>
+        Click [[=A("here", _href=URL("companies")) ]] for a live sample.
+    </p>
+    <div class="is-size-4 has-text-weight-medium">
+        Set grid defaults for the application in common.py
+    </div>
+    <pre><code>
+from py4web.utils.form import FormStyleDefault, FormStyleBulma
+from py4web.utils.grid import GridClassStyleBulma
+from py4web.utils.param import Param
+
+from . import settings
+
+GRID_COMMON = Param(db=db,
+                    secret=settings.SESSION_SECRET_KEY,
+                    rows_per_page=15,
+                    grid_key_max_age=3600,
+                    search_button_text='Filter',
+                    include_action_button_text=True,
+                    formstyle=FormStyleBulma,
+                    grid_class_style=GridClassStyleBulma)
+    </code></pre>
+    <div class="is-size-4 has-text-weight-medium">
+        controllers.py
+    </div>
+    <pre><code>
+from py4web import action, Field
+from py4web.utils.form import Form
+from py4web.utils.grid import Grid, get_grid_key, get_storage_value
+from .common import db, session, auth, GRID_COMMON
+
+
+@action('companies', method=['POST', 'GET'])
+@action('companies/<action>/<tablename>/<record_id>', method=['POST', 'GET'])
+@action.uses(session, db, auth, 'grid.html')
+def companies(action=None, tablename=None, record_id=None):
+    grid_key = get_grid_key()
+    search_filter = get_storage_value(grid_key, 'search_filter', common_settings=GRID_COMMON)
+
+    search_form = Form([Field('search_filter', length=50, default=search_filter, _placeholder='...search text...',
+                              _title='Enter search text and click on Filter')],
+                       keep_values=True)
+
+    if search_form.accepted:
+        search_filter = search_form.vars['search_filter']
+
+    queries = [(db.company.id > 0)]
+    if search_filter:
+        queries.append(db.company.name.contains(search_filter))
+
+    orderby = [db.company.name]
+
+    grid = Grid(GRID_COMMON,
+                queries,
+                search_form=search_form,
+                storage_values=dict(search_filter=search_filter),
+                orderby=orderby,
+                create=True,
+                details=True,
+                editable=True,
+                deletable=True,
+                grid_key=grid_key)
+
+    return dict(grid=grid)
+    </code></pre>
+</div>

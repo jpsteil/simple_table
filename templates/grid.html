@@ -1,9 +1,9 @@
 [[extend 'layout.html']]
-<style type="text/css">
-    .py4web-grid-header {
-        padding-bottom: 1em;
-    }
-</style>
 <div class="container" style="padding-top: 1em;">
-    [[=XML(form)]]
+    [[if 'action' in request.url_args and request.url_args['action'] == 'details':]]
+        [[form = grid.render()]]
+        [[=form]]
+    [[else:]]
+        [[=grid.render()]]
+    [[pass]]
 </div>

@@ -11,6 +11,10 @@ from py4web.utils.auth import Auth
 from py4web.utils.downloader import downloader
 from py4web.utils.tags import Tags
 from py4web.utils.factories import ActionFactory
+from py4web.utils.form import FormStyleDefault, FormStyleBulma
+from py4web.utils.grid import GridClassStyleBulma
+from py4web.utils.param import Param
+
 from . import settings
 
 # implement custom loggers form settings.LOGGERS
@@ -140,3 +144,12 @@ auth.enable(uses=(session, T, db), env=dict(T=T))
 
 unauthenticated = ActionFactory(db, session, T, auth)
 authenticated = ActionFactory(db, session, T, auth.user)
+
+GRID_COMMON = Param(db=db,
+                    secret=settings.SESSION_SECRET_KEY,
+                    rows_per_page=15,
+                    grid_key_max_age=3600,
+                    search_button_text='Filter',
+                    include_action_button_text=True,
+                    formstyle=FormStyleBulma,
+                    grid_class_style=GridClassStyleBulma)
