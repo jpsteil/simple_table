@@ -1,6 +1,9 @@
 from functools import reduce
-from py4web import request
+from urllib.parse import unquote_plus
+
 from pydal.objects import Field
+
+from py4web import request
 from py4web.utils.form import Form, FormStyleBulma
 
 
@@ -20,7 +23,7 @@ class GridSearch:
         field_values = dict()
         for field in field_names:
             if field in request.query:
-                field_values[field] = request.query[field]
+                field_values[field] = unquote_plus(request.query[field])
 
         form_fields = []
         for field in field_names:
