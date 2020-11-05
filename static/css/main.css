@@ -10,3 +10,7 @@ ul li {
 p {
     padding-bottom: 1rem;
 }
+
+.grid-cell-type-date {
+    text-align: center !important;
+}
