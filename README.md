@@ -1,11 +1,9 @@
-##SIMPLE TABLE
+## SIMPLE TABLE
 The simple_table application is a proof-of-concept / playground to analyze different web grids in py4web. The sample application includes samples using simple_table, the py4web HTML grid and a datatables.net implementation.
 
 py4web HTML Grid Examples
 
-Check out the source.
-
-###ZIP Code database
+### ZIP Code database
 Simple CRUD over 40,000 record table. Highlight basic implementation of simple_table.
 
 * Click column heads for sorting - click again for DESC
@@ -16,10 +14,10 @@ Simple CRUD over 40,000 record table. Highlight basic implementation of simple_t
 * Companies
 * Companies CRUD - code table for use with Employees
 
-###Departments
+### Departments
 Departments CRUD code table for use with Employees
 
-###Employees
+### Employees
 Employees CRUD - Shows LEFT OUTER JOINs to bring in foreign key descriptive fields.
 
 * Filter dropdowns from alternate tables
@@ -28,12 +26,12 @@ Employees CRUD - Shows LEFT OUTER JOINs to bring in foreign key descriptive fiel
 * Display boolean fields with font-awesome checkbox
 * LEFT JOIN to control display of foreign keys
 
-###Datatables.net Grid Examples
+### Datatables.net Grid Examples
 Datatables.net ZIP Code CRUD
 
-###Model / Database
-```
+### Model / Database
 The following model is used within the application. It is delivered as a SQLite database.
+```
 db.define_table('zip_code',
         Field('id', 'id', readable=False),
         Field('zip_code', length=5, required=True, unique=True,
