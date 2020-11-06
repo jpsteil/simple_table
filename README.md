@@ -1,42 +1,87 @@
-# py4web simple table
+##SIMPLE TABLE
+The simple_table application is a proof-of-concept / playground to analyze different web grids in py4web. The sample application includes samples using simple_table, the py4web HTML grid and a datatables.net implementation.
 
-A collection of different ways to display a grid in py4web.
+py4web HTML Grid Examples
 
-* Simple Table - My shot at a reusable table
-* HTML Grid - the HTML grid from py4web
-* Datatables.net - sample implementation of a reusable datatables.net table
-* py4web AJAX grid - AJAX grid using mtable
-* py4web Vue.js grid - a Vue.js grid in py4web
+Check out the source.
 
-All three examples are working over the same sqlite database of zip code I downloaded freely from the web which contains just over 42,000 records.
+###ZIP Code database
+Simple CRUD over 40,000 record table. Highlight basic implementation of simple_table.
 
-##### This is a work in progress
+* Click column heads for sorting - click again for DESC
+* Pagination control
+* Filter Form - you supply and control filtering
+* Action Buttons - with or without text
+* Full CRUD with Delete Confirmation
+* Companies
+* Companies CRUD - code table for use with Employees
 
-Random thoughts on each
+###Departments
+Departments CRUD code table for use with Employees
 
-#### Simple Table
-A CRUD tool for py4web.  Similar to what SQLFORM.grid provided in web2py.  Not close to being as flexible.  Needs to be vetted for security vulnerabilities.
+###Employees
+Employees CRUD - Shows LEFT OUTER JOINs to bring in foreign key descriptive fields.
 
-Search is different that web2py SQLFORM.grid.  In essense, you provide your own FORM that will be rendered and then you build the queries to pass to SimpleTable for it to get the data.
+* Filter dropdowns from alternate tables
+* Search filter over concatenated table fields
+* Auto date formatting based on browser locale
+* Display boolean fields with font-awesome checkbox
+* LEFT JOIN to control display of foreign keys
 
-#### HTML Grid
-* I like my edit buttons the right side of each row - I need to work on adding that
-* Paging seems to be off a little bit - I will submit a PR
-* filtering - if you return no rows, you lose all your column header except for the ones where there is a filter
-* the paging buttons move around too much - I like to be able to page without moving my mouse.  The next button moves around based on the text before it (obviously).  Would like a different paging control.
-* formatting - I seem to recall Massimo saying we needed to add some standardized css classes so people can modify the look and feel.
+###Datatables.net Grid Examples
+Datatables.net ZIP Code CRUD
 
-#### datatables.net
-* Formatting was a concern but now I'm happy with how it is working
-* Edit and Delete controls are working - need a confirmation popup before delete
+###Model / Database
+```
+The following model is used within the application. It is delivered as a SQLite database.
+db.define_table('zip_code',
+        Field('id', 'id', readable=False),
+        Field('zip_code', length=5, required=True, unique=True,
+              requires=[IS_NOT_EMPTY(),
+                        IS_NOT_IN_DB(db, 'zip_code.zip_code')]),
+        Field('zip_type'),
+        Field('primary_city'),
+        Field('state'),
+        Field('county'),
+        Field('timezone'),
+        Field('area_code'),
+        Field('latitude', 'decimal(5,2)'),
+        Field('longitude', 'decimal(5,2)'),
+        format='%(zip_code)s')
 
-#### AJAX Grid
-* I don't care for the layout
-* No paging controls, only allows you to retrieve more rows which are then added on to the end of the rows you'd already retrieved
-* Confusing search control - I can't figure out how to search by Primary City in my app
-* I don't think I'll be looking at this any more as I just don't like the way it worked.
+db.executesql('CREATE INDEX IF NOT EXISTS zip_code__idx ON zip_code (zip_code);')
+db.executesql('CREATE INDEX IF NOT EXISTS zip_code_2__idx ON zip_code (zip_code, county, primary_city);')
 
-#### Vue.js Grid
-* Not sure how this is supposed to work.  I couldn't get a sample working wiht my table
+db.define_table('company',
+                Field('name', length=50))
 
- 
+db.define_table('department',
+                Field('name', length=50))
+
+db.define_table('employee',
+                Field('first_name', length=50),
+                Field('last_name', length=50),
+                Field('company_name', length=50),
+                Field('address', length=50),
+                Field('city', length=50),
+                Field('county', length=50),
+                Field('state', length=50),
+                Field('zip_code', length=50),
+                Field('phone_1', length=50),
+                Field('phone_2', length=50),
+                Field('email', length=50),
+                Field('web', length=50),
+                Field('supervisor', 'reference employee',
+                      requires=IS_NULL_OR(IS_IN_DB(db, 'employee.id',
+                                                   '%(last_name)s, %(first_name)s',
+                                                   zero='..'))),
+                Field('company', 'reference company',
+                      requires=IS_NULL_OR(IS_IN_DB(db, 'company.id',
+                                                   '%(name)s',
+                                                   zero='..'))),
+                Field('department', 'reference department',
+                      requires=IS_NULL_OR(IS_IN_DB(db, 'department.id',
+                                                   '%(name)s',
+                                                   zero='..'))),
+                Field('hired', 'date', requires=IS_NULL_OR(IS_DATE())))
+```
