@@ -1,6 +1,8 @@
 ## SIMPLE TABLE
 The simple_table application is a proof-of-concept / playground to analyze different web grids in py4web. The sample application includes samples using simple_table, the py4web HTML grid and a datatables.net implementation.
 
+Run live sample at [here](http://pythonbench.com/simple_table).
+
 py4web HTML Grid Examples
 
 ### ZIP Code database
