@@ -190,10 +190,19 @@ def FormStyleGrid(table, vars, errors, readonly, deletable):
 @action('companies/<path:path>', method=['POST', 'GET'])
 @action.uses(session, db, auth, 'grid.html')
 def companies(path=None):
+    queries = [(db.company.id > 0)]
+    orderby = [db.company.name]
+    search_queries = [['Search by Name', lambda val: db.company.name.contains(val)]]
+    search = GridSearch(search_queries, queries)
     grid = Grid(path,
-                query=reduce(lambda a, b: (a & b), [db.company.id > 0]),
-                orderby=[db.company.name],
-                search_queries=[['Search by Name', lambda val: db.company.name.contains(val)]])
+                search.query,
+                search_form=search.search_form,
+                orderby=orderby,
+                create=True,
+                details=True,
+                editable=True,
+                deletable=True,
+                **GRID_DEFAULTS)
 
     return dict(grid=grid)
 
