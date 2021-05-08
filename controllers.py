@@ -186,6 +186,7 @@ def FormStyleGrid(table, vars, errors, readonly, deletable):
     return FormStyleDefault(table, vars, errors, readonly, deletable, classes)
 
 
+
 @action('companies', method=['POST', 'GET'])
 @action('companies/<path:path>', method=['POST', 'GET'])
 @action.uses(session, db, auth, 'grid.html')
@@ -272,3 +273,122 @@ def employees(path=None):
         % (value.year, value.month, value.day,)
     )
     return dict(grid=grid)
+#/////////////////////////////////////////////////////////////////////////
+#contractor
+#Datatables edit facility - Based on Example 3 from https://github.com/KasperOlesen/DataTable-AltEditor
+#/////////////////////////////////////////////////////////////////////////
+#This returns the
+@unauthenticated
+@action('contractor', method=['GET'])
+@action.uses(session, db, auth, 'contractor.html')
+def contractor():
+    """
+    display a page with a datatables.net with AltEditor on it
+    The datatable will get data from contractor_data, see contractor.html
+    :return:
+    """
+    return dict()
+
+@unauthenticated
+@action('contractor_data', method=['GET'])
+@action.uses(session, db, auth)
+def contractor_data():
+    """
+    :return:
+    return data in JSON format: e.g.:
+    [{"id":1, "name":"Tigerrrr Nixon", "position":"System Architect", "office":"Edinburgh", "extension":"5421", "startDate":"2011/04/25", "salary":"Tiger Nixon"},
+    {"id":2, "name":"Garrett Winters", "position":"Accountant", "office":"Tokyo", "extension":"8422", "startDate":"2011/07/25", "salary":"Garrett Winters"}]
+
+    """
+    queries = [(db.contractor.id > 0)]
+    query = reduce(lambda a, b: (a & b), queries)
+
+    data = [dict(id=z.id,
+                 name=z.name,
+                 position=z.position,
+                 office=z.office,
+                 extension=z.extension,
+                 startDate=z.startDate,
+                 salary=z.salary,
+                 ) for z in db(query).select()]
+
+    return json.dumps(data)
+
+#EDIT
+@action('contractor/<contractor_id>', method=['PUT', 'POST', 'GET'])
+@action.uses(session, db, auth, 'contractor.html')
+def contractor(contractor_id):
+    """
+    This handles Ajax Put and Post requests. See lines 107 and 127 of contractor.html
+    Create/PUT:
+    url: 'contractor/0',
+    type: 'PUT',
+
+    Edit/POST:
+    url: 'contractor/'+rowdata.id,
+    type: 'POST',
+    :return:
+    This function must return one compelte row of the new or edited row in JSON format for the table to update itself via Ajax.
+    e.g.: {"id":10, "name":"Name modified by server", "position":"Modified position", "office":"", "extension":"", "startDate":"", "salary":""}
+    """
+    if request.method == 'GET':
+        if int(contractor_id) > 0:
+            z = db(db.contractor.id == int(contractor_id)).select().first()
+            data = dict(id=z.id,
+                         name=z.name,
+                         position=z.position,
+                         office=z.office,
+                         extension=z.extension,
+                         startDate=z.startDate,
+                         salary=z.salary,
+                         )
+            return json.dumps(data)
+
+    if request.method == 'PUT':
+        #if contractor_id == 0:
+        #Create new
+        #Do other specific error checking here.
+        newid = db.contractor.insert(name=request.forms.get('name'), position=request.forms.get('position'), office=request.forms.get('office'),
+                           extension=request.forms.get('extension'), startDate=request.forms.get('startdate'), salary=request.forms.get('salary'))
+        z = db(db.contractor.id == int(newid)).select().first()
+        data = dict(id=z.id,
+                     name=z.name,
+                     position=z.position,
+                     office=z.office,
+                     extension=z.extension,
+                     startDate=z.startDate,
+                     salary=z.salary)
+        return json.dumps(data)
+        #return """[{"id": 3, "name": "Ass", "position": "ret", "office": "london", "extension": "1", "startDate": null, "salary": "100000"}]"""
+
+    if request.method == 'POST':
+        if int(contractor_id) > 0:
+            z = db(db.contractor.id == int(contractor_id)).select().first()
+            z.update_record(name=request.forms.get('name'), position=request.forms.get('position'), office=request.forms.get('office'),
+                               extension=request.forms.get('extension'), startDate=request.forms.get('startdate'), salary=request.forms.get('salary'))
+            z = db(db.contractor.id == int(contractor_id)).select().first()
+            data = [dict(id=z.id,
+                         name=z.name,
+                         position=z.position,
+                         office=z.office,
+                         extension=z.extension,
+                         startDate=z.startDate,
+                         salary=z.salary)]
+            return json.dumps(data)
+
+
+#/////////////////////////////////////////////////////////////////////////
+#DELETE
+@action('contractor/delete/<contractor_id>', method=['DELETE','GET', 'POST'])
+@action.uses(session, db, auth, 'contractor.html')
+def contractor_delete(contractor_id):
+    """
+    This handles delete requests
+    url: 'contractor/delete/' + rowdata.id,
+    type: 'DELETE',
+    :return:
+    Dont need to return anything
+    """
+    result = db(db.contractor.id == contractor_id).delete()
+    return dict()
+#/////////////////////////////////////////////////////////////////////////
