@@ -9,7 +9,7 @@ from py4web import Session, Cache, Translator, DAL, Field, action
 from py4web.utils.mailer import Mailer
 from py4web.utils.auth import Auth
 from py4web.utils.downloader import downloader
-from py4web.utils.tags import Tags
+from pydal.tools.tags import Tags
 from py4web.utils.factories import ActionFactory
 from py4web.utils.form import FormStyleDefault, FormStyleBulma
 from py4web.utils.grid import GridClassStyleBulma
@@ -48,7 +48,11 @@ elif settings.SESSION_TYPE == "redis":
     host, port = settings.REDIS_SERVER.split(":")
     # for more options: https://github.com/andymccurdy/redis-py/blob/master/redis/client.py
     conn = redis.Redis(host=host, port=int(port))
-    conn.set = lambda k, v, e, cs=conn.set, ct=conn.ttl: cs(k, v, ct(k)) if ct(k) >= 0 else cs(k, v, e)
+    conn.set = (
+        lambda k, v, e, cs=conn.set, ct=conn.ttl: cs(k, v, ct(k))
+        if ct(k) >= 0
+        else cs(k, v, e)
+    )
     session = Session(secret=settings.SESSION_SECRET_KEY, storage=conn)
 elif settings.SESSION_TYPE == "memcache":
     import memcache, time
@@ -64,7 +68,7 @@ auth = Auth(session, db, define_tables=False)
 auth.use_username = True
 auth.registration_requires_confirmation = settings.VERIFY_EMAIL
 auth.registration_requires_approval = settings.REQUIRES_APPROVAL
-auth.allowed_actions = ['all']
+auth.allowed_actions = ["all"]
 auth.login_expiration_time = 3600
 auth.password_complexity = {"entropy": 50}
 auth.block_previous_password_num = 3
@@ -117,10 +121,12 @@ if settings.OAUTH2FACEBOOK_CLIENT_ID:
 # files uploaded and reference by Field(type='upload')
 # #######################################################
 if settings.UPLOAD_PATH:
-    @action('download/<filename>')
+
+    @action("download/<filename>")
     @action.uses(db)
     def download(filename):
         return downloader(db, settings.UPLOAD_PATH, filename)
+
     # To take advtange of this in Form(s)
     # for every field of type upload you MUST specify:
     #
@@ -143,8 +149,10 @@ auth.enable(uses=(session, T, db), env=dict(T=T))
 unauthenticated = ActionFactory(db, session, T, auth)
 authenticated = ActionFactory(db, session, T, auth.user)
 
-GRID_DEFAULTS = dict(rows_per_page=15,
-                     include_action_button_text=True,
-                     search_button_text='Filter',
-                     formstyle=FormStyleBulma,
-                     grid_class_style=GridClassStyleBulma)
+GRID_DEFAULTS = dict(
+    rows_per_page=15,
+    include_action_button_text=True,
+    search_button_text="Filter",
+    formstyle=FormStyleBulma,
+    grid_class_style=GridClassStyleBulma,
+)

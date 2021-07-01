@@ -1,11 +1,32 @@
-from yatl.helpers import DIV, TABLE, TR, TD, TH, A, SPAN, I, THEAD, P, TAG, TBODY, SCRIPT
+from yatl.helpers import (
+    DIV,
+    TABLE,
+    TR,
+    TD,
+    TH,
+    A,
+    SPAN,
+    I,
+    THEAD,
+    P,
+    TAG,
+    TBODY,
+    SCRIPT,
+)
 from py4web import URL
 
 
 class DataTablesResponse:
-    def __init__(self, fields=None, data_url=None, create_url=None,
-                 edit_url=None, delete_url=None, page_length=15,
-                 sort_sequence=None):
+    def __init__(
+        self,
+        fields=None,
+        data_url=None,
+        create_url=None,
+        edit_url=None,
+        delete_url=None,
+        page_length=15,
+        sort_sequence=None,
+    ):
         """
         All the data we need to build a datatable
         Contains helper methods to write out the table
@@ -66,83 +87,108 @@ class DataTablesResponse:
 """
 
     def script(self):
-        js = ('<script type="text/javascript">'
-              '    $(document).ready(function() {'
-              '        $(\'#datatables_table\').DataTable( {'
-              '            dom: "lfrtip", '
-              '            processing: true, '
-              '            serverSide: true, '
-              '            lengthMenu: [  [10, 15, 20, -1], [10, 15, 20, \'All\']  ], '
-              '            pageLength: %s, '
-              '            pagingType: "numbers", '
-              '            ajax: "%s", '
-              '            columns: [' % (self.page_length, self.data_url))
+        js = (
+            '<script type="text/javascript">'
+            "    $(document).ready(function() {"
+            "        $('#datatables_table').DataTable( {"
+            '            dom: "lfrtip", '
+            "            processing: true, "
+            "            serverSide: true, "
+            "            lengthMenu: [  [10, 15, 20, -1], [10, 15, 20, 'All']  ], "
+            "            pageLength: %s, "
+            '            pagingType: "numbers", '
+            '            ajax: "%s", '
+            "            columns: [" % (self.page_length, self.data_url)
+        )
         #  add the field values
         for field in self.fields:
-            js += ('{'
-                   '    "data": "%s", '
-                   '    "name": "%s", '
-                   '    "visible": %s, '
-                   '},' % (field.name, field.name, 'true' if field.visible else 'false'))
+            js += (
+                "{"
+                '    "data": "%s", '
+                '    "name": "%s", '
+                '    "visible": %s, '
+                "}," % (field.name, field.name, "true" if field.visible else "false")
+            )
         #  add the row buttons
-        js += ('{'
-               '    data: null,'
-               '    render: function ( data, type, row ) {'
-               '      var edit_url=\'%s\'; '
-               '      edit_url = edit_url.replace("record_id", row.DT_RowId); '
-               '      var delete_url=\'%s\'; '
-               '      delete_url = delete_url.replace("record_id", row.DT_RowId); '
-               '      return edit_url + "&nbsp;" + delete_url '
-               '    }, '
-               '    orderable: false, '
-               '}' % (A(I(_class='fas fa-edit'),
-                        _href=self.edit_url if self.edit_url else '#',
-                        _class='button is-small'),
-                      A(I(_class='fas fa-trash'),
-                        _href=self.delete_url if self.delete_url else '#',
-                        _class='button is-small',
-                        _message='Delete Record')))
-        js += '], columnDefs: ['
+        js += (
+            "{"
+            "    data: null,"
+            "    render: function ( data, type, row ) {"
+            "      var edit_url='%s'; "
+            '      edit_url = edit_url.replace("record_id", row.DT_RowId); '
+            "      var delete_url='%s'; "
+            '      delete_url = delete_url.replace("record_id", row.DT_RowId); '
+            '      return edit_url + "&nbsp;" + delete_url '
+            "    }, "
+            "    orderable: false, "
+            "}"
+            % (
+                A(
+                    I(_class="fas fa-edit"),
+                    _href=self.edit_url if self.edit_url else "#",
+                    _class="button is-small",
+                ),
+                A(
+                    I(_class="fas fa-trash"),
+                    _href=self.delete_url if self.delete_url else "#",
+                    _class="button is-small",
+                    _message="Delete Record",
+                ),
+            )
+        )
+        js += "], columnDefs: ["
         for index, field in enumerate(self.fields):
             if not field.visible:
                 js += '{"visible": false, "targets": %s},' % index
         js += '{className: "has-text-centered", "targets": %s}' % (index + 1)
 
-        js += ('],'
-               'order: ')
+        js += "]," "order: "
         for sort in self.sort_sequence:
             js += '[ %s, "%s" ]' % (sort[0], sort[1])
 
-        js += (','
-               '        stateSave: true, '
-               '        select: true, '
-               '    });'
-               '    $(".dataTables_filter input").focus().select();'
-               '});'
-               '</script>')
+        js += (
+            ","
+            "        stateSave: true, "
+            "        select: true, "
+            "    });"
+            '    $(".dataTables_filter input").focus().select();'
+            "});"
+            "</script>"
+        )
 
         return str(js)
 
     def table(self):
         _html = DIV()
-        if self.create_url and self.create_url != '':
-            _a = A('', _href=self.create_url,
-                   _class='button', _style='margin-bottom: 1rem;')
-            _span = SPAN(_class='icon is-small')
-            _span.append(I(_class='fas fa-plus'))
+        if self.create_url and self.create_url != "":
+            _a = A(
+                "",
+                _href=self.create_url,
+                _class="button",
+                _style="margin-bottom: 1rem;",
+            )
+            _span = SPAN(_class="icon is-small")
+            _span.append(I(_class="fas fa-plus"))
             _a.append(_span)
-            _a.append(SPAN('New'))
+            _a.append(SPAN("New"))
             _html.append(_a)
 
-        _table = TABLE(_id='datatables_table',
-                       _class='compact stripe hover cell-border order-column',
-                       _style='padding-top: 1rem;')
+        _table = TABLE(
+            _id="datatables_table",
+            _class="compact stripe hover cell-border order-column",
+            _style="padding-top: 1rem;",
+        )
         _thead = THEAD()
         _tr = TR()
         for field in self.fields:
-            _tr.append(TH(field.label, _class='datatables-header'))
-        _tr.append(TH('ACTIONS', _class='datatables-header has-text-centered',
-                      _style='color: black; width: 1px; white-space: nowrap;'))
+            _tr.append(TH(field.label, _class="datatables-header"))
+        _tr.append(
+            TH(
+                "ACTIONS",
+                _class="datatables-header has-text-centered",
+                _style="color: black; width: 1px; white-space: nowrap;",
+            )
+        )
         _thead.append(_tr)
         _table.append(_thead)
         _table.append(TBODY())
@@ -179,71 +225,71 @@ class DataTablesRequest:
         """
         for x in self.get_vars:
             value = self.get_vars[x]
-            if x == 'start':
+            if x == "start":
                 self.start = int(value)
-            elif x == 'draw':
+            elif x == "draw":
                 self.draw = value
-            elif x == 'length':
+            elif x == "length":
                 self.length = int(value)
-            elif x == 'search[value]':
+            elif x == "search[value]":
                 self.search_value = value
-            elif x == 'search[regex]':
+            elif x == "search[regex]":
                 self.search_regex = value
-            elif x[:7] == 'columns':
+            elif x[:7] == "columns":
                 column = dict()
 
                 #  get start and end positions of attributes
-                column_number_start = x.find('[')
-                column_number_end = x.find(']', column_number_start)
+                column_number_start = x.find("[")
+                column_number_end = x.find("]", column_number_start)
                 column_attribute_start = column_number_end + 2
-                column_attribute_end = x.find(']', column_attribute_start)
-                column_sub_attribute_start = x.find('[', column_attribute_end)
+                column_attribute_end = x.find("]", column_attribute_start)
+                column_sub_attribute_start = x.find("[", column_attribute_end)
 
-                column_number = int(x[column_number_start + 1:column_number_end])
+                column_number = int(x[column_number_start + 1 : column_number_end])
 
                 if column_number in self.columns:
                     column = self.columns[column_number]
 
                 #  get the attribute name and value
-                column_attribute = x[column_attribute_start: column_attribute_end]
-                column_sub_attribute = ''
+                column_attribute = x[column_attribute_start:column_attribute_end]
+                column_sub_attribute = ""
                 if column_sub_attribute_start and column_sub_attribute_start > 0:
-                    column_sub_attribute = x[column_sub_attribute_start + 1: -1]
+                    column_sub_attribute = x[column_sub_attribute_start + 1 : -1]
 
-                column['column_number'] = column_number
+                column["column_number"] = column_number
                 if column_sub_attribute:
-                    column_attribute += f'_{column_sub_attribute}'
+                    column_attribute += f"_{column_sub_attribute}"
 
                 column[column_attribute] = value
 
                 self.columns[column_number] = column
-            elif x[:5] == 'order':
+            elif x[:5] == "order":
                 orderby = dict()
 
                 #  get start and end positions of attributes
-                orderby_number_start = x.find('[')
-                orderby_number_end = x.find(']', orderby_number_start)
+                orderby_number_start = x.find("[")
+                orderby_number_end = x.find("]", orderby_number_start)
                 orderby_attribute_start = orderby_number_end + 2
-                orderby_attribute_end = x.find(']', orderby_attribute_start)
-                orderby_sub_attribute_start = x.find('[', orderby_attribute_end)
+                orderby_attribute_end = x.find("]", orderby_attribute_start)
+                orderby_sub_attribute_start = x.find("[", orderby_attribute_end)
 
-                orderby_number = int(x[orderby_number_start + 1:orderby_number_end])
+                orderby_number = int(x[orderby_number_start + 1 : orderby_number_end])
 
                 if orderby_number in self.orderby:
                     orderby = self.orderby[orderby_number]
 
                 #  get the attribute name and value
-                orderby_attribute = x[orderby_attribute_start: orderby_attribute_end]
-                orderby_sub_attribute = ''
+                orderby_attribute = x[orderby_attribute_start:orderby_attribute_end]
+                orderby_sub_attribute = ""
                 if orderby_sub_attribute_start and orderby_sub_attribute_start > 0:
-                    orderby_sub_attribute = x[orderby_sub_attribute_start + 1: -1]
+                    orderby_sub_attribute = x[orderby_sub_attribute_start + 1 : -1]
                 value = self.get_vars[x]
 
-                orderby['orderby_number'] = orderby_number
+                orderby["orderby_number"] = orderby_number
                 if orderby_sub_attribute:
-                    orderby_attribute += f'_{orderby_sub_attribute}'
+                    orderby_attribute += f"_{orderby_sub_attribute}"
 
-                if orderby_attribute == 'column':
+                if orderby_attribute == "column":
                     orderby[orderby_attribute] = int(value)
                 else:
                     orderby[orderby_attribute] = value
@@ -265,19 +311,27 @@ class DataTablesRequest:
         self.dal_orderby = []
         if self.orderby and table_name:
             for ob in self.orderby:
-                column = self.columns[self.orderby[ob]['column']]
-                if self.orderby[ob]['dir'] == 'desc':
-                    self.dal_orderby.append(~db[table_name][column['name']])
+                column = self.columns[self.orderby[ob]["column"]]
+                if self.orderby[ob]["dir"] == "desc":
+                    self.dal_orderby.append(~db[table_name][column["name"]])
                 else:
-                    self.dal_orderby.append(db[table_name][column['name']])
+                    self.dal_orderby.append(db[table_name][column["name"]])
 
         return
 
 
 class DataTablesField:
-    def __init__(self, name, label=None,
-                 sort_sequence=None, visible=True, editable=False,
-                 hide_edit=False, control_type=None, options=None):
+    def __init__(
+        self,
+        name,
+        label=None,
+        sort_sequence=None,
+        visible=True,
+        editable=False,
+        hide_edit=False,
+        control_type=None,
+        options=None,
+    ):
         """
         a dataholder class holding all the info we need on a field
 
@@ -291,7 +345,7 @@ class DataTablesField:
         :param options: misc options - future
         """
         self.name = name
-        self.label = label if label else name.upper().replace('_', ' ')
+        self.label = label if label else name.upper().replace("_", " ")
         self.sort_sequence = sort_sequence
         self.visible = visible
         self.editable = editable
