@@ -12,7 +12,6 @@ from py4web.utils.grid import Grid
 
 
 @action("index", method=["POST", "GET"])
-@action("/", method=["POST", "GET"])
 @action.uses(session, db, auth, "index.html")
 def index():
     return dict()
