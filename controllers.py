@@ -12,14 +12,24 @@ from py4web.utils.grid import Grid
 
 
 @action("index", method=["POST", "GET"])
-@action.uses(session, db, auth, "index.html")
+@action.uses(
+    "index.html",
+    session,
+    db,
+    auth,
+)
 def index():
     return dict()
 
 
 @action("zip_codes", method=["POST", "GET"])
 @action("zip_codes/<path:path>", method=["POST", "GET"])
-@action.uses(session, db, auth, "grid.html")
+@action.uses(
+    "grid.html",
+    session,
+    db,
+    auth,
+)
 def zip_codes(path=None):
     fields = [
         db.zip_code.id,
@@ -115,7 +125,12 @@ def zip_codes(path=None):
 
 @unauthenticated
 @action("datatables", method=["GET", "POST"])
-@action.uses(session, db, auth, "datatables.html")
+@action.uses(
+    "datatables.html",
+    session,
+    db,
+    auth,
+)
 def datatables():
     """
     display a page with a datatables.net grid on it
@@ -141,7 +156,6 @@ def datatables():
     return dict(dt=dt)
 
 
-@unauthenticated
 @action("datatables_data", method=["GET", "POST"])
 @action.uses(session, db, auth)
 def datatables_data():
@@ -187,7 +201,12 @@ def datatables_data():
 
 
 @action("zip_code/<zip_code_id>", method=["GET", "POST"])
-@action.uses(session, db, auth, "edit.html")
+@action.uses(
+    "edit.html",
+    session,
+    db,
+    auth,
+)
 def zip_code(zip_code_id):
     db.zip_code.id.readable = False
     db.zip_code.id.writable = False
@@ -220,7 +239,12 @@ def zip_code(zip_code_id):
 
 
 @action("zip_code/delete/<zip_code_id>", method=["GET", "POST"])
-@action.uses(session, db, auth, "grid.html")
+@action.uses(
+    "grid.html",
+    session,
+    db,
+    auth,
+)
 def zip_code_delete(zip_code_id):
     result = db(db.zip_code.id == zip_code_id).delete()
     redirect(URL("datatables"))
@@ -252,7 +276,12 @@ def FormStyleGrid(table, vars, errors, readonly, deletable):
 
 @action("companies", method=["POST", "GET"])
 @action("companies/<path:path>", method=["POST", "GET"])
-@action.uses(session, db, auth, "grid.html")
+@action.uses(
+    "grid.html",
+    session,
+    db,
+    auth,
+)
 def companies(path=None):
     queries = [(db.company.id > 0)]
     orderby = [db.company.name]
@@ -277,7 +306,12 @@ def companies(path=None):
 
 @action("departments", method=["POST", "GET"])
 @action("departments/<path:path>", method=["POST", "GET"])
-@action.uses(session, db, auth, "grid.html")
+@action.uses(
+    "grid.html",
+    session,
+    db,
+    auth,
+)
 def departments(path=None):
     queries = [(db.department.id > 0)]
     orderby = [db.department.name]
@@ -304,7 +338,12 @@ def departments(path=None):
 
 @action("employees", method=["POST", "GET"])
 @action("employees/<path:path>", method=["POST", "GET"])
-@action.uses(session, db, auth, "grid.html")
+@action.uses(
+    "grid.html",
+    session,
+    db,
+    auth,
+)
 def employees(path=None):
     queries = [(db.employee.id > 0)]
     orderby = [db.employee.last_name, db.employee.first_name]
